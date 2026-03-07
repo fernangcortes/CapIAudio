@@ -1,0 +1,8 @@
+{
+  "name": "CapIAudio",
+  "description": "O Canivete Suíço da Gravação Inteligente. Grave áudios, marque momentos em tempo real e use IA para transcrição, tarefas e integração com Premiere/DaVinci.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}
