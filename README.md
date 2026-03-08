@@ -8,10 +8,10 @@
 
 - **Gravação com Waveform Real:** Visualização de ondas sonoras em tempo real durante a gravação (Web Audio API).
 - **Marcação em Tempo Real:** Adicione marcadores personalizados (ex: "Decisão", "Tarefa", "Dúvida") com um clique enquanto grava.
-- **Transcrição Inteligente:** Transcrição completa do áudio utilizando o modelo **Gemini 3 Flash**.
+- **Transcrição Inteligente:** Transcrição completa do áudio utilizando o modelo **Gemini 3.1 Flash Lite**.
 - **Resumo Executivo & Action Items:** Geração automática de resumos, tarefas (Action Items) e decisões tomadas.
 - **Detecção de Localização:** Identifica locais mencionados no áudio e gera links para o Google Maps.
-- **Geração de Imagens (Nano Banana):** Cria descrições visuais conceituais baseadas nos momentos marcados (`gemini-2.5-flash-image`).
+- **Geração de Imagens (Nano Banana 2):** Cria descrições visuais conceituais baseadas nos momentos marcados (`gemini-3.1-flash-image-preview`).
 - **Histórico Local:** Todas as gravações, transcrições e resumos são salvos automaticamente no seu navegador (IndexedDB).
 - **Exportação Profissional:** Exporte marcadores diretamente para o Adobe Premiere (`.xml`) ou DaVinci Resolve (`.csv`).
 
@@ -21,7 +21,7 @@
 
 - **Frontend:** React 18, TypeScript, Vite
 - **Estilização:** Tailwind CSS, Framer Motion (Animações)
-- **Inteligência Artificial:** `@google/genai` (Gemini 3 Flash, Gemini 2.5 Flash Image)
+- **Inteligência Artificial:** `@google/genai` (Gemini 3.1 Flash Lite, Gemini 3.1 Flash Image Preview)
 - **Armazenamento:** IndexedDB (Persistência local offline)
 - **Mobile/Desktop:** Capacitor (Android/iOS), PWA (Progressive Web App)
 

@@ -2,18 +2,42 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { Marker } from '../types';
 
 function getAiClient() {
-  const key = localStorage.getItem('GEMINI_API_KEY') || process.env.GEMINI_API_KEY;
+  const key = localStorage.getItem('GEMINI_API_KEY') || process.env.API_KEY || process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error('API Key não configurada. Por favor, adicione sua chave nas configurações.');
   }
   return new GoogleGenAI({ apiKey: key });
 }
 
-export async function transcribeAudio(audioBlob: Blob): Promise<string> {
+export async function transcribeAudio(audioBlobs: Blob[], markers: Marker[] = []): Promise<string> {
   try {
+    if (!audioBlobs || audioBlobs.length === 0) {
+      return 'Áudio vazio ou não gravado.';
+    }
+
     const ai = getAiClient();
-    const base64Data = await blobToBase64(audioBlob);
-    const mimeType = audioBlob.type || 'audio/webm';
+    
+    const parts: any[] = [];
+    for (const blob of audioBlobs) {
+      const base64Data = await blobToBase64(blob);
+      if (base64Data) {
+        parts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType: blob.type || 'audio/webm'
+          }
+        });
+      }
+    }
+
+    if (parts.length === 0) {
+      return 'Erro ao processar o áudio (vazio).';
+    }
+
+    const speakerMarkers = markers.filter(m => m.type === 'person' && typeof m.data === 'string' && m.data.startsWith('Falando:'));
+    const speakerContext = speakerMarkers.length > 0 
+      ? `\n\nATENÇÃO AOS PARTICIPANTES:\nDurante a gravação, o usuário marcou os momentos em que cada pessoa começou a falar. Aqui estão as marcações de tempo (em segundos):\n${speakerMarkers.map(m => `- Aos ${Math.floor(m.time)} segundos: ${m.data.replace('Falando: ', '')}`).join('\n')}\n\nUse essas marcações de tempo para identificar as falas e colocar o nome da pessoa antes da fala na transcrição (ex: "João: Olá pessoal").` 
+      : '';
 
     const prompt = `Transcreva este áudio em português do Brasil com EXTREMA PRECISÃO.
 REGRAS CRUCIAIS:
@@ -21,23 +45,15 @@ REGRAS CRUCIAIS:
 2. Se houver sons de fundo (chuva, trânsito, respiração, passos), descreva-os entre colchetes. Exemplo: [som de chuva], [som de passos].
 3. Se você não tiver certeza de uma palavra ou frase, mas precisar tentar adivinhar pelo contexto para fazer sentido, coloque-a entre asteriscos duplos. Exemplo: **palavra**.
 4. Se houver apenas silêncio ou ruídos sem fala, retorne apenas as descrições dos sons ou deixe vazio. Jamais crie uma história ou texto que não está no áudio.
-5. Separe em parágrafos se houver pausas longas.`;
+5. Separe em parágrafos se houver pausas longas.${speakerContext}`;
+
+    parts.push({ text: prompt });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3.1-flash-lite-preview',
       contents: [
         {
-          parts: [
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: mimeType,
-              },
-            },
-            {
-              text: prompt,
-            },
-          ],
+          parts: parts,
         },
       ],
     });
@@ -68,7 +84,7 @@ export async function generateSummaryAndTasks(transcription: string, markers: Ma
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3.1-flash-lite-preview',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -126,13 +142,22 @@ export async function fetchLocationData(locationName: string): Promise<any> {
   }
 }
 
-export async function generateVisualDescription(context: string): Promise<string | null> {
+export async function generateVisualDescription(context: string, model = 'gemini-3.1-flash-image-preview', size = '512px'): Promise<string | null> {
   try {
     const imageAi = getAiClient();
     
-    // Using gemini-2.5-flash-image as it is more likely to be available on free tier
+    const config: any = {
+      imageConfig: {
+        aspectRatio: '16:9',
+      }
+    };
+
+    if (model === 'gemini-3.1-flash-image-preview') {
+      config.imageConfig.imageSize = size;
+    }
+
     const response = await imageAi.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: model,
       contents: {
         parts: [
           {
@@ -140,12 +165,7 @@ export async function generateVisualDescription(context: string): Promise<string
           },
         ],
       },
-      config: {
-        imageConfig: {
-          aspectRatio: '16:9',
-          // imageSize is not supported in gemini-2.5-flash-image
-        }
-      }
+      config
     });
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
@@ -169,11 +189,23 @@ export async function generateVisualDescription(context: string): Promise<string
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64data = (reader.result as string).split(',')[1];
-      resolve(base64data);
+    reader.onload = () => {
+      try {
+        if (typeof reader.result === 'string') {
+          const base64data = reader.result.split(',')[1];
+          if (base64data) {
+            resolve(base64data);
+          } else {
+            reject(new Error('Base64 data is empty'));
+          }
+        } else {
+          reject(new Error('FileReader result is not a string'));
+        }
+      } catch (error) {
+        reject(error);
+      }
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(reader.error || new Error('FileReader error'));
     reader.readAsDataURL(blob);
   });
 }

@@ -6,61 +6,160 @@ import { MarkerGrid } from './components/MarkerGrid';
 import { ResultScreen } from './components/ResultScreen';
 import { HistoryScreen } from './components/HistoryScreen';
 import { APP_MODES } from './constants';
-import { AppMode } from './types';
+import { AppMode, RecordingSession, ModeConfig } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings2, History } from 'lucide-react';
+import { Settings2, History, Edit3, Save, Plus } from 'lucide-react';
+import { getAllModes, saveCustomModes, saveSession } from './services/storageService';
 
 export default function App() {
-  const [currentMode, setCurrentMode] = useState<AppMode>('meeting');
+  const [modes, setModes] = useState<Record<string, ModeConfig>>(getAllModes());
+  const [currentModeId, setCurrentModeId] = useState<AppMode>('interview');
+  const currentMode = modes[currentModeId] || modes['interview'];
+  
   const [view, setView] = useState<'recorder' | 'results' | 'history'>('recorder');
   const [showSettings, setShowSettings] = useState(false);
+  const [isEditingLayout, setIsEditingLayout] = useState(false);
+  const [isEditingModeName, setIsEditingModeName] = useState(false);
+  const [editedModeName, setEditedModeName] = useState('');
+
+  const handleSaveModeName = () => {
+    if (editedModeName.trim() && currentMode.custom) {
+      const updatedMode = { ...currentMode, name: editedModeName.trim() };
+      const newModes = { ...modes, [currentModeId]: updatedMode };
+      setModes(newModes);
+      
+      const customModesList = (Object.values(newModes) as ModeConfig[]).filter(m => m.custom);
+      saveCustomModes(customModesList);
+    }
+    setIsEditingModeName(false);
+  };
   const [apiKeyInput, setApiKeyInput] = useState('');
+  const [imageModel, setImageModel] = useState(localStorage.getItem('IMAGE_MODEL') || 'gemini-3.1-flash-image-preview');
+  const [imageSize, setImageSize] = useState(localStorage.getItem('IMAGE_SIZE') || '512px');
   
+  const [currentSession, setCurrentSession] = useState<RecordingSession | null>(null);
+  const [filename, setFilename] = useState('');
+
   const {
     isRecording,
+    isPaused,
     currentTime,
     audioBlob,
     audioUrl,
     mediaStream,
     startRecording,
+    pauseRecording,
     stopRecording,
-    resetRecording
+    resetRecording,
+    setCurrentTime
   } = useAudioRecorder();
 
   const {
     markers,
     customButtons,
+    speakers,
     addMarker,
     addCustomButton,
+    addSpeaker,
     resetMarkers,
-    setButtons
-  } = useMarkers(APP_MODES[currentMode].defaultButtons);
+    setButtons,
+    setMarkers
+  } = useMarkers(currentMode.defaultButtons);
 
   useEffect(() => {
-    if (!isRecording && !audioBlob) {
-      setButtons(APP_MODES[currentMode].defaultButtons);
+    if (!isRecording && !audioBlob && !isEditingLayout) {
+      setButtons(currentMode.defaultButtons);
     }
-  }, [currentMode, isRecording, audioBlob, setButtons]);
+  }, [currentModeId, isRecording, audioBlob, setButtons, isEditingLayout]);
 
   useEffect(() => {
     const key = localStorage.getItem('GEMINI_API_KEY');
     if (key) setApiKeyInput(key);
   }, []);
 
-  const saveApiKey = () => {
+  const saveSettings = () => {
     localStorage.setItem('GEMINI_API_KEY', apiKeyInput);
+    localStorage.setItem('IMAGE_MODEL', imageModel);
+    localStorage.setItem('IMAGE_SIZE', imageSize);
     setShowSettings(false);
   };
 
-  const handleStop = () => {
-    stopRecording();
+  const handleSaveLayout = () => {
+    const updatedMode = { ...currentMode, defaultButtons: customButtons, custom: true };
+    const newModes = { ...modes, [currentModeId]: updatedMode };
+    setModes(newModes);
+    
+    // Save to local storage
+    const customModesList = (Object.values(newModes) as ModeConfig[]).filter(m => m.custom);
+    saveCustomModes(customModesList);
+    setIsEditingLayout(false);
+  };
+
+  const handleCreateMode = () => {
+    const newId = `custom-${Math.random().toString(36).substr(2, 9)}`;
+    const newMode: ModeConfig = {
+      id: newId,
+      name: 'Novo Modo',
+      icon: '✨',
+      description: 'Modo personalizado',
+      defaultButtons: [],
+      custom: true
+    };
+    const newModes = { ...modes, [newId]: newMode };
+    setModes(newModes);
+    setCurrentModeId(newId);
+    setButtons([]);
+    setIsEditingLayout(true);
+    
+    const customModesList = (Object.values(newModes) as ModeConfig[]).filter(m => m.custom);
+    saveCustomModes(customModesList);
+  };
+
+  const handleStartRecording = () => {
+    if (isEditingLayout) setIsEditingLayout(false);
+    startRecording();
+  };
+
+  const handleStop = async () => {
+    const newBlob = await stopRecording();
+    
+    let session = currentSession;
+    if (!session) {
+      session = {
+        id: Math.random().toString(36).substr(2, 9),
+        title: filename.trim() || `Gravação - ${new Date().toLocaleString()}`,
+        date: new Date().toISOString(),
+        modeId: currentModeId,
+        audioBlobs: [newBlob],
+        markers: markers,
+        duration: currentTime,
+      };
+    } else {
+      session = {
+        ...session,
+        title: filename.trim() || session.title,
+        audioBlobs: [...session.audioBlobs, newBlob],
+        markers: markers,
+        duration: currentTime,
+      };
+    }
+    
+    setCurrentSession(session);
+    await saveSession(session);
     setView('results');
   };
 
   const handleReset = () => {
     resetRecording();
     resetMarkers();
+    setCurrentSession(null);
     setView('recorder');
+  };
+
+  const handleResumeRecording = () => {
+    setView('recorder');
+    // We don't call startRecording immediately here because the user might want to edit layout or prepare.
+    // They can click the big Mic button to resume.
   };
 
   return (
@@ -77,18 +176,61 @@ export default function App() {
           
           <div className="flex items-center gap-4">
             {!isRecording && !audioBlob && view === 'recorder' && (
-              <select
-                value={currentMode}
-                onChange={(e) => setCurrentMode(e.target.value as AppMode)}
-                className="bg-[#1e2130] border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 transition-colors appearance-none cursor-pointer pr-10 relative"
-                style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
-              >
-                {Object.values(APP_MODES).map((mode) => (
-                  <option key={mode.id} value={mode.id}>
-                    {mode.icon} {mode.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                {isEditingModeName ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editedModeName}
+                      onChange={(e) => setEditedModeName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSaveModeName()}
+                      className="bg-[#1e2130] border border-emerald-500 text-white text-sm rounded-xl px-4 py-2.5 outline-none w-40"
+                      autoFocus
+                    />
+                    <button onClick={handleSaveModeName} className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-colors">
+                      <Save size={18} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <select
+                      value={currentModeId}
+                      onChange={(e) => {
+                        const newModeId = e.target.value;
+                        setCurrentModeId(newModeId);
+                        setButtons(modes[newModeId].defaultButtons);
+                      }}
+                      className="bg-[#1e2130] border border-white/10 text-white text-sm rounded-xl px-4 py-2.5 outline-none focus:border-emerald-500 transition-colors appearance-none cursor-pointer pr-10 relative"
+                      style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1em' }}
+                    >
+                      {(Object.values(modes) as ModeConfig[]).map((mode) => (
+                        <option key={mode.id} value={mode.id}>
+                          {mode.icon} {mode.name}
+                        </option>
+                      ))}
+                    </select>
+                    {currentMode.custom && (
+                      <button 
+                        onClick={() => {
+                          setEditedModeName(currentMode.name);
+                          setIsEditingModeName(true);
+                        }}
+                        className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                        title="Renomear Modo"
+                      >
+                        <Edit3 size={16} />
+                      </button>
+                    )}
+                  </div>
+                )}
+                <button 
+                  onClick={handleCreateMode}
+                  className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                  title="Criar Novo Modo"
+                >
+                  <Plus size={20} />
+                </button>
+              </div>
             )}
             
             {view !== 'history' && (
@@ -110,7 +252,7 @@ export default function App() {
                 <Settings2 size={20} />
               </button>
               <div className="absolute top-full mt-2 right-0 px-2 py-1 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                Configurações (API Key)
+                Configurações
               </div>
             </div>
           </div>
@@ -122,9 +264,9 @@ export default function App() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4">
           <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 w-full max-w-md shadow-2xl">
             <h3 className="text-xl font-medium text-white mb-2">Configurações</h3>
-            <p className="text-sm text-zinc-400 mb-6">Insira sua chave de API do Google Gemini para habilitar os recursos de IA.</p>
+            <p className="text-sm text-zinc-400 mb-6">Ajuste as preferências de IA e insira sua chave de API.</p>
             
-            <div className="mb-6">
+            <div className="mb-4">
               <label className="block text-sm font-medium text-zinc-300 mb-2">Gemini API Key</label>
               <input
                 type="password"
@@ -134,10 +276,38 @@ export default function App() {
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
               />
             </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-zinc-300 mb-2">Modelo de Imagem</label>
+              <select
+                value={imageModel}
+                onChange={(e) => setImageModel(e.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
+              >
+                <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash Image (Alta Qualidade)</option>
+                <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (Rápido)</option>
+              </select>
+            </div>
+
+            {imageModel === 'gemini-3.1-flash-image-preview' && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Tamanho da Imagem</label>
+                <select
+                  value={imageSize}
+                  onChange={(e) => setImageSize(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="512px">0.5K (512px) - Padrão</option>
+                  <option value="1K">1K</option>
+                  <option value="2K">2K</option>
+                  <option value="4K">4K</option>
+                </select>
+              </div>
+            )}
             
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 mt-8">
               <button onClick={() => setShowSettings(false)} className="px-4 py-2 text-zinc-400 hover:text-white transition-colors">Cancelar</button>
-              <button onClick={saveApiKey} className="px-4 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400 transition-colors">Salvar</button>
+              <button onClick={saveSettings} className="px-4 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400 transition-colors">Salvar</button>
             </div>
           </div>
         </div>
@@ -159,11 +329,15 @@ export default function App() {
                 <div className="w-full md:w-1/3 flex flex-col items-center justify-center">
                   <Recorder
                     isRecording={isRecording}
+                    isPaused={isPaused}
                     currentTime={currentTime}
-                    onStart={startRecording}
+                    onStart={handleStartRecording}
                     onStop={handleStop}
-                    modeName={APP_MODES[currentMode].name}
+                    onPause={pauseRecording}
+                    modeName={currentMode.name}
                     mediaStream={mediaStream}
+                    filename={filename}
+                    setFilename={setFilename}
                   />
                 </div>
               )}
@@ -172,29 +346,46 @@ export default function App() {
               {isRecording && (
                 <Recorder
                   isRecording={isRecording}
+                  isPaused={isPaused}
                   currentTime={currentTime}
-                  onStart={startRecording}
+                  onStart={handleStartRecording}
                   onStop={handleStop}
-                  modeName={APP_MODES[currentMode].name}
+                  onPause={pauseRecording}
+                  modeName={currentMode.name}
                   mediaStream={mediaStream}
+                  filename={filename}
+                  setFilename={setFilename}
                 />
               )}
 
               {/* Right Column: Markers */}
               <div className={`w-full ${isRecording ? 'md:w-full max-w-3xl mx-auto pb-32' : 'md:w-2/3'}`}>
-                <div className="mb-8">
-                  <h2 className="text-2xl font-semibold mb-2">Marcadores</h2>
-                  <p className="text-zinc-400 text-sm">
-                    Clique nos botões abaixo durante a gravação para registrar momentos importantes.
-                  </p>
+                <div className="mb-8 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-semibold mb-2">Marcadores</h2>
+                    <p className="text-zinc-400 text-sm">
+                      {isEditingLayout ? 'Arraste para reordenar, clique no ícone para redimensionar.' : 'Clique nos botões abaixo durante a gravação para registrar momentos importantes.'}
+                    </p>
+                  </div>
+                  {!isRecording && !audioBlob && (
+                    <button
+                      onClick={() => isEditingLayout ? handleSaveLayout() : setIsEditingLayout(true)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${isEditingLayout ? 'bg-emerald-500 text-zinc-900 hover:bg-emerald-400' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
+                    >
+                      {isEditingLayout ? <><Save size={16} /> Salvar Layout</> : <><Edit3 size={16} /> Editar Layout</>}
+                    </button>
+                  )}
                 </div>
                 
-                <div className={`transition-opacity duration-500 ${isRecording ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                <div className={`transition-opacity duration-500 ${isRecording || isEditingLayout ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
                   <MarkerGrid
                     buttons={customButtons}
-                    currentTime={currentTime}
-                    onMark={(btn, data) => addMarker(currentTime, btn, data)}
+                    onMark={(btn, data) => {
+                      if (!isEditingLayout) addMarker(currentTime, btn, data);
+                    }}
                     onAddCustomButton={addCustomButton}
+                    currentTime={currentTime}
+                    setButtons={isEditingLayout ? setButtons : undefined}
                   />
                 </div>
 
@@ -225,22 +416,17 @@ export default function App() {
             </motion.div>
           )}
 
-          {view === 'results' && (
+          {view === 'results' && currentSession && (
             <motion.div
               key="results-view"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              {audioBlob && audioUrl && (
-                <ResultScreen
-                  audioBlob={audioBlob}
-                  audioUrl={audioUrl}
-                  markers={markers}
-                  onReset={handleReset}
-                  currentMode={currentMode}
-                  duration={currentTime}
-                />
-              )}
+              <ResultScreen
+                session={currentSession}
+                onReset={handleReset}
+                onResume={handleResumeRecording}
+              />
             </motion.div>
           )}
 
@@ -250,7 +436,16 @@ export default function App() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <HistoryScreen onBack={() => setView('recorder')} />
+              <HistoryScreen 
+                onBack={() => setView('recorder')} 
+                onResumeSession={(session) => {
+                  setCurrentSession(session);
+                  setCurrentModeId(session.modeId);
+                  setCurrentTime(session.duration);
+                  setMarkers(session.markers);
+                  setView('recorder');
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>

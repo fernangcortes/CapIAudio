@@ -1,27 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { getAllRecordings, deleteRecording, RecordingData } from '../services/storageService';
-import { RecordingViewer } from './RecordingViewer';
+import { getAllSessions, deleteSession, getAllModes } from '../services/storageService';
+import { RecordingSession, ModeConfig } from '../types';
+import { ResultScreen } from './ResultScreen';
 import { motion, AnimatePresence } from 'motion/react';
 import { Clock, Calendar, ChevronLeft, Trash2, PlayCircle } from 'lucide-react';
-import { APP_MODES } from '../constants';
 
 interface HistoryScreenProps {
   onBack: () => void;
+  onResumeSession: (session: RecordingSession) => void;
 }
 
-export function HistoryScreen({ onBack }: HistoryScreenProps) {
-  const [recordings, setRecordings] = useState<RecordingData[]>([]);
-  const [selectedRecording, setSelectedRecording] = useState<RecordingData | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+export function HistoryScreen({ onBack, onResumeSession }: HistoryScreenProps) {
+  const [sessions, setSessions] = useState<RecordingSession[]>([]);
+  const [selectedSession, setSelectedSession] = useState<RecordingSession | null>(null);
+  const modes = getAllModes();
 
   useEffect(() => {
-    loadRecordings();
+    loadSessions();
   }, []);
 
-  const loadRecordings = async () => {
+  const loadSessions = async () => {
     try {
-      const data = await getAllRecordings();
-      setRecordings(data);
+      const data = await getAllSessions();
+      setSessions(data);
     } catch (error) {
       console.error('Erro ao carregar histórico:', error);
     }
@@ -30,24 +31,20 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('Tem certeza que deseja excluir esta gravação?')) {
-      await deleteRecording(id);
-      await loadRecordings();
-      if (selectedRecording?.id === id) {
+      await deleteSession(id);
+      await loadSessions();
+      if (selectedSession?.id === id) {
         handleBackToHistory();
       }
     }
   };
 
-  const handleSelect = (rec: RecordingData) => {
-    const url = URL.createObjectURL(rec.audioBlob);
-    setAudioUrl(url);
-    setSelectedRecording(rec);
+  const handleSelect = (session: RecordingSession) => {
+    setSelectedSession(session);
   };
 
   const handleBackToHistory = () => {
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setAudioUrl(null);
-    setSelectedRecording(null);
+    setSelectedSession(null);
   };
 
   const formatDuration = (seconds: number) => {
@@ -56,8 +53,8 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
     return `${m}:${s}`;
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('pt-BR', {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',
@@ -65,7 +62,7 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
     });
   };
 
-  if (selectedRecording && audioUrl) {
+  if (selectedSession) {
     return (
       <motion.div 
         initial={{ opacity: 0, x: 20 }}
@@ -79,24 +76,12 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
           <ChevronLeft size={20} /> Voltar para Histórico
         </button>
         
-        <RecordingViewer
-          audioBlob={selectedRecording.audioBlob}
-          audioUrl={audioUrl}
-          markers={selectedRecording.markers}
-          transcription={selectedRecording.transcription}
-          aiData={selectedRecording.aiData}
-          locations={selectedRecording.locations}
-          images={selectedRecording.images}
-          onReset={onBack} // "Nova Gravação" volta para o início
-          onDelete={() => {
-            if (confirm('Tem certeza que deseja excluir esta gravação?')) {
-              deleteRecording(selectedRecording.id).then(() => {
-                handleBackToHistory();
-                loadRecordings();
-              });
-            }
+        <ResultScreen
+          session={selectedSession}
+          onReset={onBack}
+          onResume={() => {
+            onResumeSession(selectedSession);
           }}
-          title={`Gravação de ${formatDate(selectedRecording.date)}`}
         />
       </motion.div>
     );
@@ -121,19 +106,19 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
         </button>
       </div>
 
-      {recordings.length === 0 ? (
+      {sessions.length === 0 ? (
         <div className="text-center py-20 bg-zinc-900/50 rounded-3xl border border-zinc-800">
           <p className="text-zinc-500 text-lg">Nenhuma gravação encontrada.</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {recordings.map((rec) => {
-            const mode = Object.values(APP_MODES).find(m => m.id === rec.mode);
+          {sessions.map((session) => {
+            const mode = modes[session.modeId];
             return (
               <motion.div
-                key={rec.id}
-                layoutId={rec.id}
-                onClick={() => handleSelect(rec)}
+                key={session.id}
+                layoutId={session.id}
+                onClick={() => handleSelect(session)}
                 className="group bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 hover:border-emerald-500/30 p-5 rounded-2xl cursor-pointer transition-all flex items-center justify-between"
               >
                 <div className="flex items-center gap-4">
@@ -142,14 +127,14 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
                   </div>
                   <div>
                     <h3 className="text-white font-medium text-lg flex items-center gap-2">
-                      {mode?.name || 'Gravação'}
+                      {session.title || mode?.name || 'Gravação'}
                       <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full border border-zinc-700">
-                        {formatDuration(rec.duration || 0)}
+                        {formatDuration(session.duration || 0)}
                       </span>
                     </h3>
                     <p className="text-zinc-500 text-sm flex items-center gap-2 mt-1">
                       <Calendar size={14} />
-                      {formatDate(rec.date)}
+                      {formatDate(session.date)}
                     </p>
                   </div>
                 </div>
@@ -158,12 +143,12 @@ export function HistoryScreen({ onBack }: HistoryScreenProps) {
                   <div className="hidden sm:block text-right mr-4">
                     <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Resumo</p>
                     <p className="text-zinc-400 text-sm max-w-[200px] truncate">
-                      {rec.aiData?.summary || 'Sem resumo'}
+                      {session.summary || 'Sem resumo'}
                     </p>
                   </div>
                   
                   <button 
-                    onClick={(e) => handleDelete(rec.id, e)}
+                    onClick={(e) => handleDelete(session.id, e)}
                     className="p-3 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
                     title="Excluir"
                   >

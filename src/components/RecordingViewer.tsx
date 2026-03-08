@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Marker } from '../types';
 import { downloadAudio, generatePremiereXML, generateDaVinciCSV } from '../services/exportService';
 import { motion } from 'motion/react';
-import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2 } from 'lucide-react';
+import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2, Edit2, Check } from 'lucide-react';
 
 interface RecordingViewerProps {
   audioBlob: Blob;
@@ -17,6 +17,7 @@ interface RecordingViewerProps {
   isProcessing?: boolean;
   statusText?: string;
   title?: string;
+  onTitleChange?: (newTitle: string) => void;
 }
 
 export function RecordingViewer({ 
@@ -31,9 +32,19 @@ export function RecordingViewer({
   onDelete,
   isProcessing,
   statusText,
-  title
+  title,
+  onTitleChange
 }: RecordingViewerProps) {
-  
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(title || '');
+
+  const handleSaveTitle = () => {
+    if (onTitleChange && editedTitle.trim()) {
+      onTitleChange(editedTitle.trim());
+    }
+    setIsEditingTitle(false);
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -41,14 +52,44 @@ export function RecordingViewer({
       className="w-full max-w-4xl mx-auto space-y-8 pb-20"
     >
       <div className="flex items-center justify-between border-b border-zinc-800 pb-6">
-        <h2 className="text-3xl font-semibold text-white flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1">
           {isProcessing ? (
-            <span className="w-8 h-8 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin" />
+            <span className="w-8 h-8 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 animate-spin flex-shrink-0" />
           ) : (
-            <CheckCircle2 className="text-emerald-500" size={32} />
+            <CheckCircle2 className="text-emerald-500 flex-shrink-0" size={32} />
           )}
-          {title || (isProcessing ? statusText : 'Processamento Concluído')}
-        </h2>
+          
+          {isEditingTitle ? (
+            <div className="flex items-center gap-2 flex-1 max-w-md">
+              <input
+                type="text"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-2xl font-semibold text-white focus:outline-none focus:border-emerald-500"
+                autoFocus
+              />
+              <button onClick={handleSaveTitle} className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors">
+                <Check size={20} />
+              </button>
+            </div>
+          ) : (
+            <h2 className="text-3xl font-semibold text-white flex items-center gap-3 group">
+              {title || (isProcessing ? statusText : 'Processamento Concluído')}
+              {!isProcessing && onTitleChange && (
+                <button 
+                  onClick={() => {
+                    setEditedTitle(title || '');
+                    setIsEditingTitle(true);
+                  }}
+                  className="p-1.5 text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-zinc-800 rounded-lg transition-all"
+                >
+                  <Edit2 size={18} />
+                </button>
+              )}
+            </h2>
+          )}
+        </div>
         <div className="flex gap-2">
           {onDelete && (
             <button 

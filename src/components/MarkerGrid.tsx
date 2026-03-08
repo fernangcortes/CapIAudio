@@ -1,22 +1,123 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { CustomButton, MarkerType } from '../types';
-import { Plus, User, MapPin, Image as ImageIcon } from 'lucide-react';
+import { Plus, User, MapPin, Image as ImageIcon, Maximize2, Minimize2 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface MarkerGridProps {
   buttons: CustomButton[];
+  setButtons?: (buttons: CustomButton[]) => void;
   onMark: (button: CustomButton, data?: any) => void;
   onAddCustomButton: (icon: string, label: string, type?: MarkerType) => void;
   currentTime: number;
+  speakers?: {id: string, name: string}[];
+  onAddSpeaker?: (name: string) => void;
 }
 
-export function MarkerGrid({ buttons, onMark, onAddCustomButton, currentTime }: MarkerGridProps) {
+interface SortableButtonProps {
+  key?: string;
+  btn: CustomButton;
+  onMark: any;
+  onResize: any;
+}
+
+function SortableButton({ btn, onMark, onResize }: SortableButtonProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: btn.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`relative group ${btn.span === 2 ? 'col-span-2 sm:col-span-2' : 'col-span-1'}`}>
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => onMark(btn)}
+        {...attributes}
+        {...listeners}
+        className="w-full flex flex-col items-center justify-center p-4 bg-zinc-800 rounded-2xl border border-zinc-700 hover:border-emerald-500/50 hover:bg-zinc-700/50 transition-colors shadow-sm touch-none"
+      >
+        <span className="text-3xl mb-2">{btn.icon}</span>
+        <span className="text-sm font-medium text-zinc-300">{btn.label}</span>
+      </motion.button>
+      <button 
+        onClick={(e) => { e.stopPropagation(); onResize(btn.id); }}
+        className="absolute top-2 right-2 text-zinc-500 hover:text-white p-1.5 bg-zinc-900/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Redimensionar"
+      >
+        {btn.span === 2 ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+      </button>
+    </div>
+  );
+}
+
+export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, currentTime }: MarkerGridProps) {
   const [showPersonModal, setShowPersonModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
+  const [showAddSpeakerModal, setShowAddSpeakerModal] = useState(false);
   const [personName, setPersonName] = useState('');
+  const [speakerName, setSpeakerName] = useState('');
   const [customIcon, setCustomIcon] = useState('📌');
   const [customLabel, setCustomLabel] = useState('');
   const [savedTime, setSavedTime] = useState(0);
+  const [speakers, setSpeakers] = useState<{id: string, name: string}[]>([]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id && setButtons) {
+      const oldIndex = buttons.findIndex((btn) => btn.id === active.id);
+      const newIndex = buttons.findIndex((btn) => btn.id === over.id);
+      
+      setButtons(arrayMove(buttons, oldIndex, newIndex));
+    }
+  };
+
+  const toggleButtonSize = (id: string) => {
+    if (setButtons) {
+      setButtons(buttons.map(btn => {
+        if (btn.id === id) {
+          return { ...btn, span: btn.span === 2 ? 1 : 2 };
+        }
+        return btn;
+      }));
+    }
+  };
 
   const handlePersonClick = () => {
     setSavedTime(currentTime);
@@ -36,6 +137,14 @@ export function MarkerGrid({ buttons, onMark, onAddCustomButton, currentTime }: 
     setPersonName('');
   };
 
+  const saveSpeaker = () => {
+    if (speakerName.trim()) {
+      setSpeakers(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), name: speakerName.trim() }]);
+    }
+    setShowAddSpeakerModal(false);
+    setSpeakerName('');
+  };
+
   const saveCustomButton = () => {
     if (customLabel.trim()) {
       onAddCustomButton(customIcon, customLabel);
@@ -48,19 +157,50 @@ export function MarkerGrid({ buttons, onMark, onAddCustomButton, currentTime }: 
 
   return (
     <div className="w-full">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-        {buttons.map((btn) => (
-          <motion.button
-            key={btn.id}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onMark(btn)}
-            className="flex flex-col items-center justify-center p-4 bg-zinc-800 rounded-2xl border border-zinc-700 hover:border-emerald-500/50 hover:bg-zinc-700/50 transition-colors shadow-sm"
+      <DndContext 
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext 
+          items={buttons.map(b => b.id)}
+          strategy={rectSortingStrategy}
+        >
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+            {buttons.map((btn) => (
+              <SortableButton 
+                key={btn.id} 
+                btn={btn} 
+                onMark={onMark} 
+                onResize={toggleButtonSize} 
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+
+      {/* Speakers Section */}
+      <div className="mb-6 p-4 bg-zinc-800/30 rounded-2xl border border-zinc-800">
+        <h3 className="text-xs font-medium text-zinc-500 mb-3 uppercase tracking-wider flex items-center justify-between">
+          <span>Participantes (Quem está falando)</span>
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {speakers.map(speaker => (
+            <button 
+              key={speaker.id}
+              onClick={() => onMark({ id: `speaker-${speaker.id}`, icon: '🗣️', label: speaker.name, type: 'person' }, `Falando: ${speaker.name}`)}
+              className="px-4 py-2 bg-indigo-500/10 text-indigo-300 rounded-xl border border-indigo-500/20 hover:bg-indigo-500/20 hover:border-indigo-500/40 transition-colors flex items-center gap-2 text-sm font-medium"
+            >
+              🗣️ {speaker.name}
+            </button>
+          ))}
+          <button 
+            onClick={() => setShowAddSpeakerModal(true)}
+            className="px-4 py-2 bg-zinc-800 text-zinc-400 rounded-xl border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-colors flex items-center gap-2 text-sm"
           >
-            <span className="text-3xl mb-2">{btn.icon}</span>
-            <span className="text-sm font-medium text-zinc-300">{btn.label}</span>
-          </motion.button>
-        ))}
+            <Plus size={14} /> Adicionar Participante
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-zinc-800 pt-6">
@@ -106,6 +246,27 @@ export function MarkerGrid({ buttons, onMark, onAddCustomButton, currentTime }: 
             <div className="flex justify-end gap-3">
               <button onClick={() => setShowPersonModal(false)} className="px-4 py-2 text-zinc-400 hover:text-white">Cancelar</button>
               <button onClick={savePersonMarker} className="px-4 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400">Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddSpeakerModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 w-full max-w-sm">
+            <h3 className="text-lg font-medium text-white mb-4">Adicionar Participante</h3>
+            <p className="text-sm text-zinc-400 mb-4">Adicione o nome de quem vai falar na gravação.</p>
+            <input
+              autoFocus
+              type="text"
+              placeholder="Nome (ex: João)"
+              value={speakerName}
+              onChange={(e) => setSpeakerName(e.target.value)}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-white mb-4 focus:outline-none focus:border-emerald-500"
+            />
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowAddSpeakerModal(false)} className="px-4 py-2 text-zinc-400 hover:text-white">Cancelar</button>
+              <button onClick={saveSpeaker} className="px-4 py-2 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-400">Adicionar</button>
             </div>
           </div>
         </div>

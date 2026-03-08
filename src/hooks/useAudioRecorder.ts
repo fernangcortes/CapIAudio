@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 
 export function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -11,6 +12,7 @@ export function useAudioRecorder() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
+  const pausedTimeRef = useRef<number>(0);
 
   const startRecording = useCallback(async () => {
     try {
@@ -25,20 +27,14 @@ export function useAudioRecorder() {
         }
       };
 
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(audioBlob);
-        setAudioUrl(URL.createObjectURL(audioBlob));
-        stream.getTracks().forEach(track => track.stop());
-      };
-
       mediaRecorder.start(100);
       setIsRecording(true);
+      setIsPaused(false);
       setAudioBlob(null);
       setAudioUrl(null);
       setMediaStream(stream);
       
-      startTimeRef.current = Date.now();
+      startTimeRef.current = Date.now() - (currentTime * 1000);
       timerRef.current = window.setInterval(() => {
         setCurrentTime((Date.now() - startTimeRef.current) / 1000);
       }, 100);
@@ -47,17 +43,45 @@ export function useAudioRecorder() {
       console.error('Error accessing microphone:', err);
       alert('Não foi possível acessar o microfone.');
     }
-  }, []);
+  }, [currentTime]);
 
-  const stopRecording = useCallback(() => {
+  const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      setMediaStream(null);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+      if (isPaused) {
+        mediaRecorderRef.current.resume();
+        setIsPaused(false);
+        startTimeRef.current = Date.now() - pausedTimeRef.current;
+        timerRef.current = window.setInterval(() => {
+          setCurrentTime((Date.now() - startTimeRef.current) / 1000);
+        }, 100);
+      } else {
+        mediaRecorderRef.current.pause();
+        setIsPaused(true);
+        pausedTimeRef.current = Date.now() - startTimeRef.current;
+        if (timerRef.current) clearInterval(timerRef.current);
       }
     }
+  }, [isRecording, isPaused]);
+
+  const stopRecording = useCallback((): Promise<Blob> => {
+    return new Promise((resolve) => {
+      if (mediaRecorderRef.current && isRecording) {
+        mediaRecorderRef.current.onstop = () => {
+          const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          setAudioBlob(blob);
+          setAudioUrl(URL.createObjectURL(blob));
+          mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+          resolve(blob);
+        };
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+        setIsPaused(false);
+        setMediaStream(null);
+        if (timerRef.current) clearInterval(timerRef.current);
+      } else {
+        resolve(new Blob());
+      }
+    });
   }, [isRecording]);
 
   const resetRecording = useCallback(() => {
@@ -69,12 +93,15 @@ export function useAudioRecorder() {
 
   return {
     isRecording,
+    isPaused,
     currentTime,
     audioBlob,
     audioUrl,
     mediaStream,
     startRecording,
+    pauseRecording,
     stopRecording,
-    resetRecording
+    resetRecording,
+    setCurrentTime
   };
 }

@@ -48,7 +48,7 @@ export function Waveform({ stream, isRecording }: WaveformProps) {
       let x = 0;
 
       for (let i = 0; i < dataArrayRef.current.length; i++) {
-        barHeight = dataArrayRef.current[i] / 2;
+        barHeight = dataArrayRef.current[i] / 8;
 
         // Gradient color based on height
         const gradient = ctx.createLinearGradient(0, height, 0, height - barHeight);
@@ -88,11 +88,11 @@ export function Waveform({ stream, isRecording }: WaveformProps) {
   }, [stream, isRecording]);
 
   return (
-    <div className="w-full h-24 flex items-end justify-center overflow-hidden opacity-80">
+    <div className="w-full h-8 flex items-end justify-center overflow-hidden opacity-80">
       <canvas 
         ref={canvasRef} 
         width={300} 
-        height={100} 
+        height={32} 
         className="w-full max-w-sm h-full"
       />
     </div>

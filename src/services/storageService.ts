@@ -1,75 +1,48 @@
-import { Marker } from '../types';
+import localforage from 'localforage';
+import { RecordingSession, ModeConfig } from '../types';
+import { APP_MODES } from '../constants';
 
-const DB_NAME = 'CapIAudioDB';
-const STORE_NAME = 'recordings';
-const DB_VERSION = 1;
+localforage.config({
+  name: 'CapIAudio',
+  storeName: 'sessions'
+});
 
-export interface RecordingData {
-  id: string;
-  date: number;
-  mode: string;
-  duration: number;
-  audioBlob: Blob;
-  transcription: string;
-  aiData: any;
-  locations: any[];
-  images: any[];
-  markers: Marker[];
+export async function saveSession(session: RecordingSession) {
+  await localforage.setItem(`session-${session.id}`, session);
 }
 
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      }
-    };
-  });
+export async function getSession(id: string): Promise<RecordingSession | null> {
+  return await localforage.getItem(`session-${id}`);
 }
 
-export async function saveRecording(data: RecordingData): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.put(data);
-
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+export async function getAllSessions(): Promise<RecordingSession[]> {
+  const sessions: RecordingSession[] = [];
+  await localforage.iterate((value: RecordingSession, key: string) => {
+    if (key.startsWith('session-')) {
+      sessions.push(value);
+    }
   });
+  return sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export async function getAllRecordings(): Promise<RecordingData[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
-
-    request.onsuccess = () => {
-      // Sort by date descending
-      const results = request.result as RecordingData[];
-      results.sort((a, b) => b.date - a.date);
-      resolve(results);
-    };
-    request.onerror = () => reject(request.error);
-  });
+export async function deleteSession(id: string) {
+  await localforage.removeItem(`session-${id}`);
 }
 
-export async function deleteRecording(id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.delete(id);
+export function getCustomModes(): ModeConfig[] {
+  const modesStr = localStorage.getItem('CUSTOM_MODES');
+  return modesStr ? JSON.parse(modesStr) : [];
+}
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+export function saveCustomModes(modes: ModeConfig[]) {
+  localStorage.setItem('CUSTOM_MODES', JSON.stringify(modes));
+}
+
+export function getAllModes(): Record<string, ModeConfig> {
+  const customModes = getCustomModes();
+  const modes: Record<string, ModeConfig> = { ...APP_MODES };
+  customModes.forEach(m => {
+    modes[m.id] = m;
   });
+  return modes;
 }
