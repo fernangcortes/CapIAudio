@@ -6,7 +6,7 @@
   
   <br />
   
-  [![Acessar Aplicação Web](https://img.shields.io/badge/Acessar_Aplicação_Web-059669?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ais-pre-dwrdpxjbzmelqkkk6lp66o-59106078428.us-west2.run.app)
+  [![Acessar Documentação Interativa](https://img.shields.io/badge/Acessar_Documentação_Interativa-059669?style=for-the-badge&logo=html5&logoColor=white)](./documentacao.html)
   
   <br />
 </div>
