@@ -60,9 +60,8 @@ O **CapIAudio** é uma aplicação web progressiva (PWA) e full-stack projetada 
 O CapIAudio possui um site HTML interativo embutido com todas as informações deste README, formatado como um tour guiado com botões clicáveis e caixas descritivas.
 
 **Para acessar:**
-1. Abra o [aplicativo web](https://ais-pre-dwrdpxjbzmelqkkk6lp66o-59106078428.us-west2.run.app).
-2. Clique no ícone de **Livro (Documentação)** no cabeçalho superior direito.
-3. Explore os cards interativos, o mapa do site e as explicações sobre a arquitetura.
+1. Abra o arquivo [documentacao.html](./documentacao.html) no seu navegador.
+2. Explore os cards interativos, o mapa do site e as explicações detalhadas sobre a arquitetura e o modo cinema.
 
 ---
 

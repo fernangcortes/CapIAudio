@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual do CapIAudio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0f111a; 
+            color: #ffffff; 
+        }
+        .tab-content { 
+            display: none; 
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+        }
+        .tab-content.active { 
+            display: block; 
+        }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .stripes { 
+            background-image: repeating-linear-gradient(45deg, #fff 25%, transparent 25%, transparent 75%, #fff 75%, #fff), repeating-linear-gradient(45deg, #fff 25%, #000 25%, #000 75%, #fff 75%, #fff); 
+            background-position: 0 0, 10px 10px; 
+            background-size: 20px 20px; 
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f111a; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+    </style>
+</head>
+<body class="antialiased min-h-screen p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <div class="bg-[#1e2130] rounded-3xl p-8 md:p-12 border border-white/5 shadow-2xl mb-8">
+            <div class="flex items-center gap-6 mb-8">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
+                    <i data-lucide="book" class="text-black w-8 h-8"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-bold text-white tracking-tight">Manual do CapIAudio</h1>
+                    <p class="text-zinc-400 mt-2 text-lg">Guia técnico e prático para profissionais do audiovisual</p>
+                </div>
+            </div>
+
+            <!-- Navegação (Tabs) -->
+            <div class="flex flex-wrap gap-2 mb-8 border-b border-white/10 pb-4" id="tabs">
+                <button onclick="openTab('tools', this)" class="tab-btn active flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <i data-lucide="settings-2" class="w-4 h-4"></i> Ferramentas
+                </button>
+                <button onclick="openTab('cinema', this)" class="tab-btn flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all bg-black/20 text-zinc-400 border border-white/5 hover:bg-white/5 hover:text-white">
+                    <i data-lucide="clapperboard" class="w-4 h-4"></i> Modo Cinema
+                </button>
+                <button onclick="openTab('architecture', this)" class="tab-btn flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all bg-black/20 text-zinc-400 border border-white/5 hover:bg-white/5 hover:text-white">
+                    <i data-lucide="network" class="w-4 h-4"></i> Arquitetura
+                </button>
+                <button onclick="openTab('tech', this)" class="tab-btn flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all bg-black/20 text-zinc-400 border border-white/5 hover:bg-white/5 hover:text-white">
+                    <i data-lucide="zap" class="w-4 h-4"></i> Tecnologias
+                </button>
+            </div>
+
+            <!-- Conteúdo: Ferramentas -->
+            <div id="tools" class="tab-content active">
+                <h2 class="text-2xl font-semibold text-white mb-6">Mapa de Ferramentas</h2>
+                <p class="text-zinc-300 mb-8 leading-relaxed text-lg">
+                    O CapIAudio foi desenhado para acompanhar o fluxo de trabalho de uma gravação, desde a captação até a pós-produção. Conheça as principais ferramentas:
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-black/20 p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
+                        <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <i data-lucide="mic" class="text-emerald-400"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-white mb-2">Gravação com Waveform</h3>
+                        <p class="text-sm text-zinc-400 leading-relaxed">Captura o áudio diretamente do seu microfone e desenha a onda sonora na tela em tempo real, garantindo visualmente que o som está sendo captado corretamente.</p>
+                    </div>
+                    
+                    <div class="bg-black/20 p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
+                        <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <i data-lucide="zap" class="text-yellow-400"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-white mb-2">Marcação em Tempo Real (Tags)</h3>
+                        <p class="text-sm text-zinc-400 leading-relaxed">Botões coloridos que você aperta durante a gravação. Eles salvam o tempo exato (ex: 01:23) com uma etiqueta (ex: 'Boa Resposta', 'Erro'). Totalmente personalizáveis.</p>
+                    </div>
+
+                    <div class="bg-black/20 p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
+                        <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <i data-lucide="file-text" class="text-cyan-400"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-white mb-2">Transcrição com Diarization</h3>
+                        <p class="text-sm text-zinc-400 leading-relaxed">A Inteligência Artificial ouve o áudio e escreve tudo o que foi dito, separando automaticamente quem está falando (Locutor 1, Locutor 2) com extrema precisão.</p>
+                    </div>
+
+                    <div class="bg-black/20 p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors group">
+                        <div class="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <i data-lucide="brain" class="text-purple-400"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-white mb-2">Resumo e Action Items</h3>
+                        <p class="text-sm text-zinc-400 leading-relaxed">A IA lê a transcrição e os seus marcadores para criar um resumo executivo, listando decisões tomadas e tarefas pendentes de forma estruturada.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conteúdo: Modo Cinema -->
+            <div id="cinema" class="tab-content">
+                <h2 class="text-2xl font-semibold text-white mb-6">Deep Dive: Modo Cinema</h2>
+                <p class="text-zinc-300 mb-8 leading-relaxed text-lg">
+                    O Modo Cinema foi criado especificamente para sets de filmagem, substituindo o papel e caneta do continuísta e integrando-se diretamente com o diretor.
+                </p>
+
+                <div class="bg-black/30 rounded-2xl p-8 border border-white/5 mb-8">
+                    <div class="flex flex-col md:flex-row gap-12 items-center">
+                        <div class="flex-1">
+                            <h3 class="text-xl font-medium text-emerald-400 mb-4">A Claquete Digital</h3>
+                            <p class="text-zinc-300 text-sm leading-relaxed mb-6">
+                                Antes de cada gravação, você preenche os metadados: <strong>Cena</strong>, <strong>Plano</strong> e <strong>Take</strong>. Esses dados ficam atrelados ao arquivo de áudio e aos marcadores, facilitando a vida do montador na ilha de edição.
+                            </p>
+                            <ul class="space-y-4 text-sm text-zinc-400">
+                                <li class="flex items-start gap-3">
+                                    <i data-lucide="check-circle-2" class="text-emerald-500 w-5 h-5 shrink-0 mt-0.5"></i> 
+                                    <span><strong>Sincronização em tempo real:</strong> O que o continuísta marca no tablet aparece na tela do diretor instantaneamente.</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <i data-lucide="check-circle-2" class="text-emerald-500 w-5 h-5 shrink-0 mt-0.5"></i> 
+                                    <span><strong>Marcação de "Good Take":</strong> Destaque os takes valendo com um clique para filtrar na pós-produção.</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <i data-lucide="check-circle-2" class="text-emerald-500 w-5 h-5 shrink-0 mt-0.5"></i> 
+                                    <span><strong>Exportação Direta:</strong> Exporte um arquivo XML para o Premiere ou CSV para o DaVinci Resolve com todos os marcadores na timeline.</span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Gráfico Visual da Claquete -->
+                        <div class="w-full max-w-[280px] aspect-[4/3] bg-zinc-900 rounded-xl border-2 border-zinc-700 flex flex-col overflow-hidden shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-500">
+                            <div class="h-6 stripes w-full border-b-2 border-zinc-700"></div>
+                            <div class="flex-1 p-4 flex flex-col justify-between">
+                                <div class="text-center font-mono text-sm text-zinc-400 tracking-widest border-b border-zinc-800 pb-2">PROD. CAPIAUDIO</div>
+                                <div class="flex justify-between font-mono text-white mt-4">
+                                    <div class="text-center">
+                                        <span class="text-[10px] text-zinc-500 block mb-1">SCENE</span>
+                                        <span class="text-3xl font-bold">12A</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <span class="text-[10px] text-zinc-500 block mb-1">SHOT</span>
+                                        <span class="text-3xl font-bold">3</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <span class="text-[10px] text-zinc-500 block mb-1">TAKE</span>
+                                        <span class="text-3xl font-bold">1</span>
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex justify-between items-end">
+                                    <div class="font-mono text-[10px] text-zinc-500">DIR: F. SILVA<br>CAM: J. DOE</div>
+                                    <div class="font-mono text-xs text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded">SYNC</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-2xl p-8 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                    <h3 class="text-xl font-medium text-emerald-400 mb-3 flex items-center gap-2 relative z-10">
+                        <i data-lucide="zap" class="w-6 h-6"></i> O recurso "Auto-Claquete"
+                    </h3>
+                    <p class="text-emerald-100/90 text-base leading-relaxed relative z-10">
+                        Em vez de anotar manualmente o tempo em que a claquete bateu, você clica no botão "Auto-Claquete" logo após ouvir o "clack". A Inteligência Artificial (Gemini 3.1 Pro) analisa os últimos segundos de áudio, identifica o pico sonoro exato da batida e salva esse milissegundo. Isso permite que o editor de vídeo sincronize imagem e som com precisão cirúrgica na pós-produção, economizando horas de trabalho manual.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Conteúdo: Arquitetura -->
+            <div id="architecture" class="tab-content">
+                <h2 class="text-2xl font-semibold text-white mb-6">Arquitetura do Sistema</h2>
+                <p class="text-zinc-300 mb-12 leading-relaxed text-lg">
+                    Entenda como os dados fluem no CapIAudio, desde a captação no seu dispositivo até o processamento na nuvem.
+                </p>
+
+                <!-- Diagrama Visual -->
+                <div class="relative py-8 mb-16">
+                    <!-- Linhas de conexão (Desktop) -->
+                    <div class="absolute top-1/2 left-[10%] w-[80%] h-1 bg-gradient-to-r from-blue-500/50 via-emerald-500/50 to-purple-500/50 -translate-y-1/2 z-0 hidden md:block rounded-full"></div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
+                        <!-- Step 1 -->
+                        <div class="bg-zinc-900 p-8 rounded-2xl border border-zinc-700 flex flex-col items-center text-center shadow-2xl relative">
+                            <div class="w-20 h-20 bg-blue-500/20 text-blue-400 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/30 shadow-[0_0_30px_rgba(59,130,246,0.2)]">
+                                <i data-lucide="smartphone" class="w-10 h-10"></i>
+                            </div>
+                            <h4 class="text-white font-semibold text-lg mb-3">1. Cliente (Navegador)</h4>
+                            <p class="text-sm text-zinc-400 leading-relaxed">Captura o áudio (Web Audio API) e registra os cliques nos botões de marcação. Salva tudo localmente no IndexedDB.</p>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="bg-zinc-900 p-8 rounded-2xl border border-zinc-700 flex flex-col items-center text-center shadow-2xl relative">
+                            <div class="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                                <i data-lucide="server" class="w-10 h-10"></i>
+                            </div>
+                            <h4 class="text-white font-semibold text-lg mb-3">2. Servidor de Sincronia</h4>
+                            <p class="text-sm text-zinc-400 leading-relaxed">Usa WebSockets (Socket.IO) para transmitir os marcadores em tempo real para outros dispositivos na mesma "Sala".</p>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="bg-zinc-900 p-8 rounded-2xl border border-zinc-700 flex flex-col items-center text-center shadow-2xl relative">
+                            <div class="w-20 h-20 bg-purple-500/20 text-purple-400 rounded-2xl flex items-center justify-center mb-6 border border-purple-500/30 shadow-[0_0_30px_rgba(168,85,247,0.2)]">
+                                <i data-lucide="brain" class="w-10 h-10"></i>
+                            </div>
+                            <h4 class="text-white font-semibold text-lg mb-3">3. Google Gemini (IA)</h4>
+                            <p class="text-sm text-zinc-400 leading-relaxed">Recebe o áudio finalizado e os marcadores para gerar a transcrição precisa e os resumos executivos.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-black/30 p-8 rounded-2xl border border-white/5 flex flex-col md:flex-row gap-6 items-start">
+                    <div class="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                        <i data-lucide="database" class="text-emerald-400 w-7 h-7"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-medium text-white mb-3">Privacidade e Armazenamento</h3>
+                        <p class="text-base text-zinc-400 leading-relaxed">
+                            Para garantir a segurança dos seus dados, <strong>nenhum áudio é salvo em nossos servidores</strong>. O áudio bruto e os marcadores são salvos no banco de dados interno do seu próprio navegador (IndexedDB). O áudio só sai do seu dispositivo no momento em que você clica em "Gerar Transcrição", sendo enviado de forma criptografada diretamente para a API do Google Gemini, e descartado logo em seguida.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conteúdo: Tecnologias -->
+            <div id="tech" class="tab-content">
+                <h2 class="text-2xl font-semibold text-white mb-6">Tecnologias Utilizadas</h2>
+                <p class="text-zinc-300 mb-8 leading-relaxed text-lg">
+                    O CapIAudio foi construído utilizando as ferramentas mais modernas do desenvolvimento web para garantir performance e confiabilidade, rodando direto no navegador sem precisar instalar nada.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="flex gap-4 items-start bg-black/20 p-6 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                        <i data-lucide="code-2" class="text-emerald-500 w-6 h-6 shrink-0 mt-1"></i>
+                        <div>
+                            <h4 class="text-white font-medium text-lg">React 18 & TypeScript</h4>
+                            <p class="text-sm text-zinc-400 mt-2 leading-relaxed">A base da interface do usuário. O React permite criar componentes interativos, enquanto o TypeScript garante que o código seja seguro e livre de erros inesperados.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 items-start bg-black/20 p-6 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                        <i data-lucide="mic-2" class="text-emerald-500 w-6 h-6 shrink-0 mt-1"></i>
+                        <div>
+                            <h4 class="text-white font-medium text-lg">Web Audio API & MediaRecorder</h4>
+                            <p class="text-sm text-zinc-400 mt-2 leading-relaxed">Tecnologias nativas dos navegadores modernos que permitem acessar o microfone, processar o som para desenhar as ondas visuais e gravar o arquivo de áudio de alta qualidade.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 items-start bg-black/20 p-6 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                        <i data-lucide="sparkles" class="text-emerald-500 w-6 h-6 shrink-0 mt-1"></i>
+                        <div>
+                            <h4 class="text-white font-medium text-lg">Google Gemini AI</h4>
+                            <p class="text-sm text-zinc-400 mt-2 leading-relaxed">O cérebro por trás da transcrição e análise. Utilizamos o modelo 'Flash Lite' para transcrições rápidas e o modelo 'Pro' para tarefas complexas como ouvir a batida da claquete.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 items-start bg-black/20 p-6 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                        <i data-lucide="wifi" class="text-emerald-500 w-6 h-6 shrink-0 mt-1"></i>
+                        <div>
+                            <h4 class="text-white font-medium text-lg">Socket.IO (WebSockets)</h4>
+                            <p class="text-sm text-zinc-400 mt-2 leading-relaxed">Permite a comunicação bidirecional em tempo real. É isso que faz com que um marcador criado no notebook do continuísta apareça instantaneamente no tablet do diretor.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 items-start bg-black/20 p-6 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                        <i data-lucide="hard-drive" class="text-emerald-500 w-6 h-6 shrink-0 mt-1"></i>
+                        <div>
+                            <h4 class="text-white font-medium text-lg">IndexedDB (via localforage)</h4>
+                            <p class="text-sm text-zinc-400 mt-2 leading-relaxed">Um banco de dados robusto que vive dentro do seu navegador. Permite salvar arquivos de áudio pesados sem travar o aplicativo, garantindo que você não perca nada se a internet cair.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 items-start bg-black/20 p-6 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                        <i data-lucide="palette" class="text-emerald-500 w-6 h-6 shrink-0 mt-1"></i>
+                        <div>
+                            <h4 class="text-white font-medium text-lg">Tailwind CSS & Framer Motion</h4>
+                            <p class="text-sm text-zinc-400 mt-2 leading-relaxed">Responsáveis pelo design elegante e animações fluidas. O Tailwind permite estilizar rapidamente, e o Framer Motion cria as transições suaves entre as telas.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script para gerenciar as abas e inicializar ícones -->
+    <script>
+        // Inicializa os ícones do Lucide
+        lucide.createIcons();
+
+        function openTab(tabId, element) {
+            // Esconde todos os conteúdos
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove classe ativa de todos os botões
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = 'tab-btn flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all bg-black/20 text-zinc-400 border border-white/5 hover:bg-white/5 hover:text-white';
+            });
+
+            // Mostra o conteúdo selecionado
+            document.getElementById(tabId).classList.add('active');
+            
+            // Adiciona classe ativa no botão clicado
+            element.className = 'tab-btn active flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+        }
+    </script>
+</body>
+</html>
