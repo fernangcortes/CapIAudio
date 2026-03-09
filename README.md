@@ -3,6 +3,12 @@
   <img src="public/favicon.png" alt="CapIAudio Logo" width="120" height="120" style="border-radius: 24px; margin-bottom: 20px;" />
   <h1>🎙️ CapIAudio</h1>
   <p><strong>Gravador Inteligente com Inteligência Artificial para Entrevistas, Reuniões e Cinema</strong></p>
+  
+  <br />
+  
+  [![Acessar Aplicação Web](https://img.shields.io/badge/Acessar_Aplicação_Web-059669?style=for-the-badge&logo=googlechrome&logoColor=white)](https://ais-pre-dwrdpxjbzmelqkkk6lp66o-59106078428.us-west2.run.app)
+  
+  <br />
 </div>
 
 ---
@@ -54,9 +60,9 @@ O **CapIAudio** é uma aplicação web progressiva (PWA) e full-stack projetada 
 O CapIAudio possui um site HTML interativo embutido com todas as informações deste README, formatado como um tour guiado com botões clicáveis e caixas descritivas.
 
 **Para acessar:**
-1. Abra o aplicativo.
+1. Abra o [aplicativo web](https://ais-pre-dwrdpxjbzmelqkkk6lp66o-59106078428.us-west2.run.app).
 2. Clique no ícone de **Livro (Documentação)** no cabeçalho superior direito.
-3. Explore os cards interativos, o mapa do site e o gerador de assets.
+3. Explore os cards interativos, o mapa do site e as explicações sobre a arquitetura.
 
 ---
 
