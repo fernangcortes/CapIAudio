@@ -8,9 +8,10 @@ import { ResultScreen } from './components/ResultScreen';
 import { HistoryScreen } from './components/HistoryScreen';
 import { APP_MODES } from './constants';
 import { CinemaHeader } from './components/CinemaHeader';
+import { Documentation } from './components/Documentation';
 import { AppMode, RecordingSession, ModeConfig, CinemaMetadata } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings2, History, Edit3, Save, Plus, Wifi } from 'lucide-react';
+import { Settings2, History, Edit3, Save, Plus, Wifi, Book } from 'lucide-react';
 import { getAllModes, saveCustomModes, saveSession } from './services/storageService';
 
 export default function App() {
@@ -18,7 +19,7 @@ export default function App() {
   const [currentModeId, setCurrentModeId] = useState<AppMode>('interview');
   const currentMode = modes[currentModeId] || modes['interview'];
   
-  const [view, setView] = useState<'recorder' | 'results' | 'history'>('recorder');
+  const [view, setView] = useState<'recorder' | 'results' | 'history' | 'docs'>('recorder');
   const [showSettings, setShowSettings] = useState(false);
   const [isEditingLayout, setIsEditingLayout] = useState(false);
   const [isEditingModeName, setIsEditingModeName] = useState(false);
@@ -317,6 +318,20 @@ export default function App() {
               </div>
             )}
 
+            {view !== 'docs' && (
+              <div className="relative group">
+                <button 
+                  onClick={() => setView('docs')}
+                  className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                >
+                  <Book size={20} />
+                </button>
+                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+                  Documentação
+                </div>
+              </div>
+            )}
+
             <div className="relative group">
               <button onClick={() => setShowSettings(true)} className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
                 <Settings2 size={20} />
@@ -556,6 +571,16 @@ export default function App() {
                   setView('recorder');
                 }}
               />
+            </motion.div>
+          )}
+
+          {view === 'docs' && (
+            <motion.div
+              key="docs-view"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <Documentation onBack={() => setView('recorder')} />
             </motion.div>
           )}
         </AnimatePresence>

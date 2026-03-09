@@ -1,29 +1,83 @@
-# 🎙️ CapIAudio
-
-**CapIAudio** é um aplicativo inteligente de gravação de áudio projetado para reuniões, aulas, entrevistas e criação de conteúdo. Ele permite gravar áudio, fazer marcações em tempo real e utiliza a inteligência artificial do **Google Gemini** para transcrever, resumir e extrair insights valiosos automaticamente.
+<div align="center">
+  <img src="public/cover.png" alt="CapIAudio Cover" width="100%" style="border-radius: 12px; margin-bottom: 20px;" />
+  <img src="public/favicon.png" alt="CapIAudio Logo" width="120" height="120" style="border-radius: 24px; margin-bottom: 20px;" />
+  <h1>🎙️ CapIAudio</h1>
+  <p><strong>Gravador Inteligente com Inteligência Artificial para Entrevistas, Reuniões e Cinema</strong></p>
+</div>
 
 ---
 
-## ✨ Funcionalidades
+## 📖 Sobre o Projeto
 
-- **Gravação com Waveform Real:** Visualização de ondas sonoras em tempo real durante a gravação (Web Audio API).
-- **Marcação em Tempo Real:** Adicione marcadores personalizados (ex: "Decisão", "Tarefa", "Dúvida") com um clique enquanto grava.
-- **Transcrição Inteligente:** Transcrição completa do áudio utilizando o modelo **Gemini 3.1 Flash Lite**.
-- **Resumo Executivo & Action Items:** Geração automática de resumos, tarefas (Action Items) e decisões tomadas.
-- **Detecção de Localização:** Identifica locais mencionados no áudio e gera links para o Google Maps.
-- **Geração de Imagens (Nano Banana 2):** Cria descrições visuais conceituais baseadas nos momentos marcados (`gemini-3.1-flash-image-preview`).
-- **Histórico Local:** Todas as gravações, transcrições e resumos são salvos automaticamente no seu navegador (IndexedDB).
-- **Exportação Profissional:** Exporte marcadores diretamente para o Adobe Premiere (`.xml`) ou DaVinci Resolve (`.csv`).
+O **CapIAudio** é uma aplicação web progressiva (PWA) e full-stack projetada para revolucionar a forma como profissionais capturam e analisam áudio. Ele permite gravar áudio de alta qualidade, fazer marcações em tempo real (tags) e utiliza a inteligência artificial do **Google Gemini** para transcrever, resumir, extrair insights e até mesmo detectar sincronismo de claquetes automaticamente.
+
+---
+
+## ✨ Ferramentas e Funcionalidades
+
+### 1. 🎙️ Gravação com Waveform Real
+- **Descrição:** Visualização de ondas sonoras em tempo real durante a gravação utilizando a Web Audio API.
+- **Como usar:** Na tela inicial, clique no grande botão vermelho de microfone. A onda sonora aparecerá reagindo à sua voz.
+
+### 2. 🏷️ Marcação em Tempo Real (Tags)
+- **Descrição:** Adicione marcadores personalizados (ex: "Decisão", "Tarefa", "Erro de Foco", "Boa Resposta") com um único clique enquanto grava.
+- **Como usar:** Durante a gravação, clique nos botões coloridos na grade inferior. O tempo exato será salvo. Você pode editar o layout clicando em "Editar Layout" antes de gravar.
+
+### 3. 📝 Transcrição Inteligente (Diarization)
+- **Descrição:** Transcrição completa do áudio utilizando o modelo **Gemini 3.1 Flash Lite**, com identificação automática de locutores e regras estritas contra alucinações de IA.
+- **Como usar:** Após parar a gravação, vá para a aba "Transcrição" e clique em "Gerar Transcrição".
+
+### 4. 📊 Resumo Executivo & Action Items
+- **Descrição:** Geração automática de resumos, lista de tarefas (Action Items) e decisões tomadas com base no áudio e nos seus marcadores.
+- **Como usar:** Na tela de resultados, acesse a aba "Resumo IA" e clique em "Gerar Resumo".
+
+### 5. 🎬 Modo Cinema & Auto-Claquete
+- **Descrição:** Um modo dedicado para sets de filmagem. Permite inserir metadados (Cena, Plano, Take) e usa o **Gemini 3.1 Pro** para ouvir o áudio e detectar o momento exato da batida da claquete.
+- **Como usar:** Selecione o modo "Cinema" no topo da tela. Preencha os dados da claquete. Durante a gravação, clique no botão "Auto-Claquete" para a IA analisar os últimos segundos de áudio.
+
+### 6. 🌐 Sincronização Multi-dispositivos (WebSockets)
+- **Descrição:** Conecte múltiplos dispositivos na mesma rede/sala para sincronizar marcadores e metadados em tempo real (ex: Diretor com tablet e Continuísta com notebook).
+- **Como usar:** Clique no ícone de engrenagem (Configurações) e defina um "ID da Sala de Sincronização". Faça o mesmo nos outros dispositivos.
+
+### 7. 🎨 Geração de Assets (Nano Banana 2)
+- **Descrição:** Cria descrições visuais conceituais, capas e favicons utilizando o modelo `gemini-3.1-flash-image-preview` (Nano Banana 2).
+- **Como usar:** Acesse a página de Documentação (ícone de livro no topo) e clique em "Gerar Capa e Favicon".
+
+### 8. 💾 Exportação Profissional
+- **Descrição:** Exporte seus marcadores diretamente para softwares de edição de vídeo.
+- **Como usar:** Na tela de resultados, clique em "Exportar" e escolha entre Adobe Premiere (`.xml`) ou DaVinci Resolve (`.csv`).
+
+---
+
+## 🌐 Site Interativo de Documentação
+
+O CapIAudio possui um site HTML interativo embutido com todas as informações deste README, formatado como um tour guiado com botões clicáveis e caixas descritivas.
+
+**Para acessar:**
+1. Abra o aplicativo.
+2. Clique no ícone de **Livro (Documentação)** no cabeçalho superior direito.
+3. Explore os cards interativos, o mapa do site e o gerador de assets.
+
+---
+
+## 📱 Compartilhamento (WhatsApp & Redes Sociais)
+
+O aplicativo foi rigorosamente configurado com as **Meta Tags Open Graph** e **Twitter Cards** para garantir uma exibição perfeita e bonita ao ser compartilhado no WhatsApp, Facebook, LinkedIn ou Twitter.
+
+- **Título:** CapIAudio | Gravador Inteligente com IA
+- **Descrição:** Grave, marque momentos importantes em tempo real e transcreva áudios com Inteligência Artificial. Ideal para entrevistas, reuniões e cinema.
+- **Imagem (Thumbnail):** Imagem de capa gerada em 1200x630px (`cover.png`).
+- **Favicon:** Ícone otimizado (`favicon.png`).
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
 - **Frontend:** React 18, TypeScript, Vite
+- **Backend/Real-time:** Node.js, Express, Socket.IO
 - **Estilização:** Tailwind CSS, Framer Motion (Animações)
-- **Inteligência Artificial:** `@google/genai` (Gemini 3.1 Flash Lite, Gemini 3.1 Flash Image Preview)
-- **Armazenamento:** IndexedDB (Persistência local offline)
-- **Mobile/Desktop:** Capacitor (Android/iOS), PWA (Progressive Web App)
+- **Inteligência Artificial:** `@google/genai` (Gemini 3.1 Flash Lite, Gemini 3.1 Pro, Gemini 3.1 Flash Image Preview)
+- **Armazenamento:** IndexedDB (Persistência local offline via `localforage`)
 
 ---
 
@@ -40,65 +94,11 @@
    npm install
    ```
 
-3. **Configure a Chave de API:**
-   - O aplicativo requer uma chave de API do Google Gemini.
-   - Você pode inserir a chave diretamente na interface do aplicativo (ícone de engrenagem) ou configurar uma variável de ambiente `.env` (se estiver rodando um backend customizado).
-
-4. **Inicie o servidor de desenvolvimento:**
+3. **Inicie o servidor de desenvolvimento (Full-Stack):**
    ```bash
    npm run dev
    ```
-   Acesse `http://localhost:3000` (ou a porta indicada) no seu navegador.
-
----
-
-## 📱 Como criar o APK (Android) e App iOS
-
-Este projeto está configurado com o **Capacitor**, o que permite transformar a aplicação web em um aplicativo nativo para Android e iOS.
-
-### Pré-requisitos
-- Node.js instalado
-- Android Studio (para Android)
-- Xcode (para iOS, apenas no Mac)
-
-### Passos para gerar o APK:
-1. Compile o projeto web:
-   ```bash
-   npm run build
-   ```
-2. Adicione a plataforma Android:
-   ```bash
-   npx cap add android
-   ```
-3. Sincronize os arquivos web com o projeto Android:
-   ```bash
-   npx cap sync android
-   ```
-4. Abra o projeto no Android Studio para compilar o APK:
-   ```bash
-   npx cap open android
-   ```
-   *No Android Studio, vá em `Build > Build Bundle(s) / APK(s) > Build APK(s)`.*
-
----
-
-## 💻 Como criar o Executável Desktop (Windows/Mac/Linux)
-
-A aplicação já está configurada como um **PWA (Progressive Web App)**. Isso significa que você pode instalá-la diretamente no seu computador ou celular sem precisar de uma loja de aplicativos.
-
-### Passos:
-1. Acesse o link da aplicação no Google Chrome ou Microsoft Edge.
-2. Na barra de endereços (lado direito), clique no ícone de "Instalar aplicativo" (geralmente um monitor com uma setinha para baixo ou um botão `+`).
-3. O CapIAudio será instalado como um programa nativo no seu computador, com atalho na área de trabalho e rodando em uma janela própria.
-
----
-
-## 🗺️ Roadmap (Próximos Passos)
-
-- [ ] **Autenticação com Google:** Permitir login com conta Google.
-- [ ] **Integração com Google Tarefas:** Enviar "Action Items" gerados pela IA diretamente para o Google Tasks do usuário.
-- [ ] **Integração com Google Agenda:** Criar eventos ou lembretes baseados nas decisões e datas mencionadas na gravação.
-- [ ] **Sincronização em Nuvem:** Fazer backup das gravações e resumos no Google Drive ou Firebase.
+   Acesse `http://localhost:3000` no seu navegador.
 
 ---
 
