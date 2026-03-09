@@ -6,10 +6,10 @@ export function useMarkers(initialButtons: CustomButton[]) {
   const [customButtons, setCustomButtons] = useState<CustomButton[]>(initialButtons);
   const [speakers, setSpeakers] = useState<{id: string, name: string}[]>([]);
 
-  const addMarker = useCallback((time: number, button: CustomButton, data?: any) => {
+  const addMarker = useCallback((time: number, button: CustomButton, data?: any, explicitTime?: number) => {
     const newMarker: Marker = {
       id: Math.random().toString(36).substr(2, 9),
-      time,
+      time: explicitTime !== undefined ? explicitTime : time,
       type: button.type,
       label: button.label,
       icon: button.icon,

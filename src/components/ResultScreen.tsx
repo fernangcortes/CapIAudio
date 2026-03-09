@@ -165,8 +165,14 @@ export function ResultScreen({ session, onReset, onResume }: ResultScreenProps) 
         images={currentSession.images || []}
         onReset={onReset}
         title={currentSession.title}
+        cinemaMetadata={currentSession.cinemaMetadata}
         onTitleChange={async (newTitle) => {
           const updatedSession = { ...currentSession, title: newTitle };
+          setCurrentSession(updatedSession);
+          await saveSession(updatedSession);
+        }}
+        onTranscriptionChange={async (newTranscription) => {
+          const updatedSession = { ...currentSession, transcription: newTranscription };
           setCurrentSession(updatedSession);
           await saveSession(updatedSession);
         }}

@@ -18,6 +18,8 @@ interface RecordingViewerProps {
   statusText?: string;
   title?: string;
   onTitleChange?: (newTitle: string) => void;
+  onTranscriptionChange?: (newTranscription: string) => void;
+  cinemaMetadata?: any;
 }
 
 export function RecordingViewer({ 
@@ -33,10 +35,14 @@ export function RecordingViewer({
   isProcessing,
   statusText,
   title,
-  onTitleChange
+  onTitleChange,
+  onTranscriptionChange,
+  cinemaMetadata
 }: RecordingViewerProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title || '');
+  const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
+  const [newSpeakerName, setNewSpeakerName] = useState('');
 
   const handleSaveTitle = () => {
     if (onTitleChange && editedTitle.trim()) {
@@ -44,6 +50,26 @@ export function RecordingViewer({
     }
     setIsEditingTitle(false);
   };
+
+  const handleReplaceSpeaker = () => {
+    if (editingSpeaker && newSpeakerName.trim() && onTranscriptionChange) {
+      // Escape special characters in the speaker name
+      const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Replace all occurrences of "SpeakerName:" at the beginning of a line or paragraph
+      const regex = new RegExp(`^${escapeRegExp(editingSpeaker)}:`, 'gm');
+      const newTranscription = transcription.replace(regex, `${newSpeakerName.trim()}:`);
+      onTranscriptionChange(newTranscription);
+    }
+    setEditingSpeaker(null);
+    setNewSpeakerName('');
+  };
+
+  // Extract unique speakers from markers
+  const knownSpeakers = Array.from(new Set(
+    markers
+      .filter(m => m.type === 'person' && typeof m.data === 'string' && m.data.startsWith('Falando:'))
+      .map(m => m.data.replace('Falando: ', '').trim())
+  ));
 
   return (
     <motion.div 
@@ -114,10 +140,10 @@ export function RecordingViewer({
         <button onClick={() => downloadAudio(audioUrl)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
           <Download size={20} /> Baixar Áudio (.webm)
         </button>
-        <button onClick={() => generatePremiereXML(markers)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
+        <button onClick={() => generatePremiereXML(markers, cinemaMetadata)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
           <FileVideo size={20} /> XML (Premiere)
         </button>
-        <button onClick={() => generateDaVinciCSV(markers)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
+        <button onClick={() => generateDaVinciCSV(markers, cinemaMetadata)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
           <FileCode2 size={20} /> CSV (DaVinci)
         </button>
       </div>
@@ -209,11 +235,33 @@ export function RecordingViewer({
           {transcription ? transcription.split('\n').map((paragraph, i) => {
             if (!paragraph.trim()) return null;
             
+            // Extract speaker label if exists
+            const speakerMatch = paragraph.match(/^([^:]+):(.*)/);
+            let speaker = '';
+            let restOfParagraph = paragraph;
+            
+            if (speakerMatch) {
+              speaker = speakerMatch[1];
+              restOfParagraph = speakerMatch[2];
+            }
+            
             // Render **word** as red text
-            const parts = paragraph.split(/(\*\*.*?\*\*)/g);
+            const parts = restOfParagraph.split(/(\*\*.*?\*\*)/g);
             
             return (
               <p key={i} className="text-zinc-400 leading-relaxed mb-4">
+                {speaker && (
+                  <span 
+                    onClick={() => {
+                      setEditingSpeaker(speaker);
+                      setNewSpeakerName(speaker);
+                    }}
+                    className="font-semibold text-indigo-400 cursor-pointer hover:text-indigo-300 hover:underline mr-1"
+                    title="Clique para renomear este locutor em toda a transcrição"
+                  >
+                    {speaker}:
+                  </span>
+                )}
                 {parts.map((part, j) => {
                   if (part.startsWith('**') && part.endsWith('**')) {
                     return <span key={j} className="text-red-400 font-medium">{part.slice(2, -2)}</span>;
@@ -227,6 +275,70 @@ export function RecordingViewer({
           )}
         </div>
       </div>
+      {/* Speaker Replacement Modal */}
+      {editingSpeaker && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 w-full max-w-sm">
+            <h3 className="text-lg font-medium text-white mb-4">Renomear Locutor</h3>
+            <p className="text-sm text-zinc-400 mb-4">
+              Substituir <strong>{editingSpeaker}</strong> por:
+            </p>
+            
+            {knownSpeakers.length > 0 && (
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Participantes Conhecidos</label>
+                <div className="flex flex-wrap gap-2">
+                  {knownSpeakers.map((name, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setNewSpeakerName(name)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        newSpeakerName === name 
+                          ? 'bg-indigo-500 text-white' 
+                          : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mb-6">
+              <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Ou digite um novo nome</label>
+              <input
+                autoFocus
+                type="text"
+                value={newSpeakerName}
+                onChange={(e) => setNewSpeakerName(e.target.value)}
+                placeholder="Nome do locutor..."
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
+                onKeyDown={(e) => e.key === 'Enter' && handleReplaceSpeaker()}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => {
+                  setEditingSpeaker(null);
+                  setNewSpeakerName('');
+                }} 
+                className="px-4 py-2 text-zinc-400 hover:text-white"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleReplaceSpeaker} 
+                disabled={!newSpeakerName.trim() || newSpeakerName === editingSpeaker}
+                className="px-4 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Substituir Todos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

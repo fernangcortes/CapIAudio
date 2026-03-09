@@ -51,6 +51,18 @@ function SortableButton({ btn, onMark, onResize }: SortableButtonProps) {
     transition,
   };
 
+  // Determine colors based on the button's color property
+  let colorClasses = "bg-zinc-800 border-zinc-700 hover:border-emerald-500/50 hover:bg-zinc-700/50";
+  if (btn.color === 'Red') {
+    colorClasses = "bg-red-900/30 border-red-800/50 hover:border-red-500/50 hover:bg-red-800/40 text-red-100";
+  } else if (btn.color === 'Green') {
+    colorClasses = "bg-emerald-900/30 border-emerald-800/50 hover:border-emerald-500/50 hover:bg-emerald-800/40 text-emerald-100";
+  } else if (btn.color === 'Orange') {
+    colorClasses = "bg-orange-900/30 border-orange-800/50 hover:border-orange-500/50 hover:bg-orange-800/40 text-orange-100";
+  } else if (btn.color === 'Cyan') {
+    colorClasses = "bg-cyan-900/30 border-cyan-800/50 hover:border-cyan-500/50 hover:bg-cyan-800/40 text-cyan-100";
+  }
+
   return (
     <div ref={setNodeRef} style={style} className={`relative group ${btn.span === 2 ? 'col-span-2 sm:col-span-2' : 'col-span-1'}`}>
       <motion.button
@@ -59,10 +71,10 @@ function SortableButton({ btn, onMark, onResize }: SortableButtonProps) {
         onClick={() => onMark(btn)}
         {...attributes}
         {...listeners}
-        className="w-full flex flex-col items-center justify-center p-4 bg-zinc-800 rounded-2xl border border-zinc-700 hover:border-emerald-500/50 hover:bg-zinc-700/50 transition-colors shadow-sm touch-none"
+        className={`w-full flex flex-col items-center justify-center p-4 rounded-2xl border transition-colors shadow-sm touch-none ${colorClasses}`}
       >
         <span className="text-3xl mb-2">{btn.icon}</span>
-        <span className="text-sm font-medium text-zinc-300">{btn.label}</span>
+        <span className={`text-sm font-medium ${btn.color ? '' : 'text-zinc-300'}`}>{btn.label}</span>
       </motion.button>
       <button 
         onClick={(e) => { e.stopPropagation(); onResize(btn.id); }}
@@ -79,10 +91,14 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
   const [showPersonModal, setShowPersonModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showAddSpeakerModal, setShowAddSpeakerModal] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
   const [personName, setPersonName] = useState('');
   const [speakerName, setSpeakerName] = useState('');
   const [customIcon, setCustomIcon] = useState('📌');
   const [customLabel, setCustomLabel] = useState('');
+  const [noteText, setNoteText] = useState('');
+  const [noteType, setNoteType] = useState<MarkerType>('cinema_note');
+  const [noteButton, setNoteButton] = useState<CustomButton | null>(null);
   const [savedTime, setSavedTime] = useState(0);
   const [speakers, setSpeakers] = useState<{id: string, name: string}[]>([]);
 
@@ -96,6 +112,26 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  const handleMark = (btn: CustomButton) => {
+    if (btn.type === 'cinema_note' || btn.type === 'cinema_error') {
+      setSavedTime(currentTime);
+      setNoteType(btn.type);
+      setNoteButton(btn);
+      setShowNoteModal(true);
+    } else {
+      onMark(btn);
+    }
+  };
+
+  const saveNoteMarker = () => {
+    if (noteText.trim() && noteButton) {
+      onMark(noteButton, noteText);
+    }
+    setShowNoteModal(false);
+    setNoteText('');
+    setNoteButton(null);
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -171,7 +207,7 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
               <SortableButton 
                 key={btn.id} 
                 btn={btn} 
-                onMark={onMark} 
+                onMark={handleMark} 
                 onResize={toggleButtonSize} 
               />
             ))}
@@ -296,6 +332,27 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
             <div className="flex justify-end gap-3">
               <button onClick={() => setShowCustomModal(false)} className="px-4 py-2 text-zinc-400 hover:text-white">Cancelar</button>
               <button onClick={saveCustomButton} className="px-4 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400">Criar e Marcar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNoteModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 w-full max-w-sm">
+            <h3 className="text-lg font-medium text-white mb-4">
+              {noteType === 'cinema_error' ? 'Registrar Problema' : 'Nota de Continuidade'} (Tempo: {Math.floor(savedTime)}s)
+            </h3>
+            <textarea
+              autoFocus
+              placeholder={noteType === 'cinema_error' ? "Descreva o problema (ex: Avião passou, foco perdido)..." : "Descreva a nota de continuidade..."}
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-white mb-4 focus:outline-none focus:border-emerald-500 min-h-[100px] resize-none"
+            />
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowNoteModal(false)} className="px-4 py-2 text-zinc-400 hover:text-white">Cancelar</button>
+              <button onClick={saveNoteMarker} className="px-4 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400">Salvar</button>
             </div>
           </div>
         </div>

@@ -79,4 +79,16 @@ export const APP_MODES: Record<string, ModeConfig> = {
       { id: 'jor-5', icon: '📝', label: 'Stand-up', type: 'action' },
     ],
   },
+  cinema: {
+    id: 'cinema',
+    name: 'Set de Filmagem (Cinema)',
+    icon: '🎬',
+    description: 'Claquete digital e assistente de continuidade.',
+    defaultButtons: [
+      { id: 'cin-1', icon: '🟢', label: 'Ação / Corta', type: 'cinema_action', color: 'Red' },
+      { id: 'cin-2', icon: '⭐', label: 'Circle Take', type: 'cinema_good', color: 'Green' },
+      { id: 'cin-3', icon: '🔴', label: 'Erro/Problema', type: 'cinema_error', color: 'Orange' },
+      { id: 'cin-4', icon: '📝', label: 'Nota de Cont.', type: 'cinema_note', color: 'Cyan' },
+    ],
+  },
 };

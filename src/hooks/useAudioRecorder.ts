@@ -91,6 +91,10 @@ export function useAudioRecorder() {
     audioChunksRef.current = [];
   }, []);
 
+  const getAudioChunk = useCallback(() => {
+    return new Blob(audioChunksRef.current, { type: 'audio/webm' });
+  }, []);
+
   return {
     isRecording,
     isPaused,
@@ -102,6 +106,7 @@ export function useAudioRecorder() {
     pauseRecording,
     stopRecording,
     resetRecording,
-    setCurrentTime
+    setCurrentTime,
+    getAudioChunk
   };
 }

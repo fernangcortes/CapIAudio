@@ -1,5 +1,5 @@
 import localforage from 'localforage';
-import { RecordingSession, ModeConfig } from '../types';
+import { RecordingSession, ModeConfig, CinemaProject } from '../types';
 import { APP_MODES } from '../constants';
 
 localforage.config({
@@ -45,4 +45,13 @@ export function getAllModes(): Record<string, ModeConfig> {
     modes[m.id] = m;
   });
   return modes;
+}
+
+export async function getCinemaProjects(): Promise<CinemaProject[]> {
+  const projects = await localforage.getItem<CinemaProject[]>('cinema-projects');
+  return projects || [];
+}
+
+export async function saveCinemaProjects(projects: CinemaProject[]) {
+  await localforage.setItem('cinema-projects', projects);
 }

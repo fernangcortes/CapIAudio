@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Mic, Square, Pause, Play } from 'lucide-react';
+import { Mic, Square, Pause, Play, Clapperboard, Loader2 } from 'lucide-react';
 import { Waveform } from './Waveform';
 
 interface RecorderProps {
@@ -14,13 +14,24 @@ interface RecorderProps {
   mediaStream?: MediaStream | null;
   filename: string;
   setFilename: (name: string) => void;
+  onAutoClaquete?: () => Promise<void>;
 }
 
-export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, onPause, modeName, mediaStream, filename, setFilename }: RecorderProps) {
+export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, onPause, modeName, mediaStream, filename, setFilename, onAutoClaquete }: RecorderProps) {
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = Math.floor(seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  };
+
+  const handleAutoClaquete = async () => {
+    if (onAutoClaquete) {
+      setIsAnalyzing(true);
+      await onAutoClaquete();
+      setIsAnalyzing(false);
+    }
   };
 
   if (isRecording) {
@@ -43,6 +54,17 @@ export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, 
             </span>
           </div>
           
+          {onAutoClaquete && (
+            <button
+              onClick={handleAutoClaquete}
+              disabled={isAnalyzing}
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 text-indigo-400 rounded-lg border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors text-sm font-medium disabled:opacity-50"
+            >
+              {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Clapperboard size={16} />}
+              Auto-Claquete
+            </button>
+          )}
+
           <div className="w-px h-10 bg-zinc-800" />
           
           <div className="flex items-center gap-3">

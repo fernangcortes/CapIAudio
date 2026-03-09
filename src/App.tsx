@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAudioRecorder } from './hooks/useAudioRecorder';
 import { useMarkers } from './hooks/useMarkers';
+import { useSync } from './hooks/useSync';
 import { Recorder } from './components/Recorder';
 import { MarkerGrid } from './components/MarkerGrid';
 import { ResultScreen } from './components/ResultScreen';
 import { HistoryScreen } from './components/HistoryScreen';
 import { APP_MODES } from './constants';
-import { AppMode, RecordingSession, ModeConfig } from './types';
+import { CinemaHeader } from './components/CinemaHeader';
+import { AppMode, RecordingSession, ModeConfig, CinemaMetadata } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings2, History, Edit3, Save, Plus } from 'lucide-react';
+import { Settings2, History, Edit3, Save, Plus, Wifi } from 'lucide-react';
 import { getAllModes, saveCustomModes, saveSession } from './services/storageService';
 
 export default function App() {
@@ -21,6 +23,17 @@ export default function App() {
   const [isEditingLayout, setIsEditingLayout] = useState(false);
   const [isEditingModeName, setIsEditingModeName] = useState(false);
   const [editedModeName, setEditedModeName] = useState('');
+  const [syncRoomId, setSyncRoomId] = useState(localStorage.getItem('SYNC_ROOM_ID') || '');
+  const [cinemaMetadata, setCinemaMetadata] = useState<CinemaMetadata>({
+    movieName: '',
+    scene: '',
+    shot: '',
+    take: '01',
+    camera: 'A',
+    lens: ''
+  });
+
+  const { isConnected, remoteState, remoteMarkers, updateState, addMarker: syncAddMarker } = useSync(syncRoomId);
 
   const handleSaveModeName = () => {
     if (editedModeName.trim() && currentMode.custom) {
@@ -51,7 +64,8 @@ export default function App() {
     pauseRecording,
     stopRecording,
     resetRecording,
-    setCurrentTime
+    setCurrentTime,
+    getAudioChunk
   } = useAudioRecorder();
 
   const {
@@ -81,6 +95,7 @@ export default function App() {
     localStorage.setItem('GEMINI_API_KEY', apiKeyInput);
     localStorage.setItem('IMAGE_MODEL', imageModel);
     localStorage.setItem('IMAGE_SIZE', imageSize);
+    localStorage.setItem('SYNC_ROOM_ID', syncRoomId);
     setShowSettings(false);
   };
 
@@ -115,6 +130,20 @@ export default function App() {
     saveCustomModes(customModesList);
   };
 
+  useEffect(() => {
+    if (syncRoomId) {
+      updateState({ isRecording, metadata: cinemaMetadata });
+    }
+  }, [isRecording, cinemaMetadata, syncRoomId]);
+
+  useEffect(() => {
+    if (syncRoomId && remoteState.metadata && !isRecording) {
+      if (JSON.stringify(cinemaMetadata) !== JSON.stringify(remoteState.metadata)) {
+        setCinemaMetadata(remoteState.metadata);
+      }
+    }
+  }, [remoteState.metadata, isRecording, syncRoomId, cinemaMetadata]);
+
   const handleStartRecording = () => {
     if (isEditingLayout) setIsEditingLayout(false);
     startRecording();
@@ -133,6 +162,7 @@ export default function App() {
         audioBlobs: [newBlob],
         markers: markers,
         duration: currentTime,
+        cinemaMetadata: currentModeId === 'cinema' ? cinemaMetadata : undefined
       };
     } else {
       session = {
@@ -141,6 +171,7 @@ export default function App() {
         audioBlobs: [...session.audioBlobs, newBlob],
         markers: markers,
         duration: currentTime,
+        cinemaMetadata: currentModeId === 'cinema' ? cinemaMetadata : undefined
       };
     }
     
@@ -162,6 +193,39 @@ export default function App() {
     // They can click the big Mic button to resume.
   };
 
+  const handleAutoClaquete = async () => {
+    try {
+      const chunk = getAudioChunk();
+      if (chunk.size === 0) {
+        alert('Nenhum áudio gravado ainda.');
+        return;
+      }
+      
+      const { analyzeClapperboardAudio } = await import('./services/aiService');
+      const result = await analyzeClapperboardAudio(chunk);
+      
+      if (result) {
+        if (result.scene || result.shot || result.take) {
+          setCinemaMetadata(prev => ({
+            ...prev,
+            scene: result.scene || prev.scene,
+            shot: result.shot || prev.shot,
+            take: result.take || prev.take
+          }));
+        }
+        
+        if (result.clackTime !== undefined && result.clackTime !== null) {
+          addMarker(currentTime, { id: 'auto-clack', icon: '🎬', label: 'Clack (Auto)', type: 'cinema_action' }, `Sincronismo detectado em ${result.clackTime}s`, result.clackTime);
+        }
+      } else {
+        alert('Não foi possível identificar a claquete no áudio.');
+      }
+    } catch (error) {
+      console.error('Erro no Auto-Claquete:', error);
+      alert('Erro ao analisar o áudio.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0f111a] text-white font-sans selection:bg-emerald-500/30">
       {/* Header */}
@@ -172,6 +236,12 @@ export default function App() {
               <span className="text-xl font-bold text-black">C</span>
             </div>
             <h1 className="text-xl font-semibold tracking-tight">CapIAudio</h1>
+            {syncRoomId && (
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                <Wifi size={12} className={isConnected ? 'animate-pulse' : ''} />
+                {syncRoomId}
+              </div>
+            )}
           </div>
           
           <div className="flex items-center gap-4">
@@ -304,6 +374,22 @@ export default function App() {
                 </select>
               </div>
             )}
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-zinc-300 mb-2">ID da Sala de Sincronização</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={syncRoomId}
+                  onChange={(e) => setSyncRoomId(e.target.value)}
+                  placeholder="Ex: set-principal"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <p className="text-xs text-zinc-500 mt-2">
+                Use o mesmo ID em dispositivos diferentes para sincronizar marcadores e claquete em tempo real.
+              </p>
+            </div>
             
             <div className="flex justify-end gap-3 mt-8">
               <button onClick={() => setShowSettings(false)} className="px-4 py-2 text-zinc-400 hover:text-white transition-colors">Cancelar</button>
@@ -322,11 +408,37 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.05 }}
-              className="flex flex-col md:flex-row gap-12 items-start justify-center min-h-[60vh]"
+              className="flex flex-col gap-12 items-center justify-center min-h-[60vh]"
             >
-              {/* Left Column: Recorder (Only takes space when NOT recording) */}
-              {!isRecording && (
-                <div className="w-full md:w-1/3 flex flex-col items-center justify-center">
+              {currentModeId === 'cinema' && (
+                <CinemaHeader 
+                  metadata={cinemaMetadata} 
+                  onChange={setCinemaMetadata} 
+                  isRecording={isRecording} 
+                />
+              )}
+
+              <div className="flex flex-col md:flex-row gap-12 items-start justify-center w-full">
+                {/* Left Column: Recorder (Only takes space when NOT recording) */}
+                {!isRecording && (
+                  <div className="w-full md:w-1/3 flex flex-col items-center justify-center">
+                    <Recorder
+                      isRecording={isRecording}
+                      isPaused={isPaused}
+                      currentTime={currentTime}
+                      onStart={handleStartRecording}
+                      onStop={handleStop}
+                      onPause={pauseRecording}
+                      modeName={currentMode.name}
+                      mediaStream={mediaStream}
+                      filename={filename}
+                      setFilename={setFilename}
+                    />
+                  </div>
+                )}
+
+                {/* Recorder fixed at bottom when recording */}
+                {isRecording && (
                   <Recorder
                     isRecording={isRecording}
                     isPaused={isPaused}
@@ -338,28 +450,12 @@ export default function App() {
                     mediaStream={mediaStream}
                     filename={filename}
                     setFilename={setFilename}
+                    onAutoClaquete={currentModeId === 'cinema' ? handleAutoClaquete : undefined}
                   />
-                </div>
-              )}
+                )}
 
-              {/* Recorder fixed at bottom when recording */}
-              {isRecording && (
-                <Recorder
-                  isRecording={isRecording}
-                  isPaused={isPaused}
-                  currentTime={currentTime}
-                  onStart={handleStartRecording}
-                  onStop={handleStop}
-                  onPause={pauseRecording}
-                  modeName={currentMode.name}
-                  mediaStream={mediaStream}
-                  filename={filename}
-                  setFilename={setFilename}
-                />
-              )}
-
-              {/* Right Column: Markers */}
-              <div className={`w-full ${isRecording ? 'md:w-full max-w-3xl mx-auto pb-32' : 'md:w-2/3'}`}>
+                {/* Right Column: Markers */}
+                <div className={`w-full ${isRecording ? 'md:w-full max-w-3xl mx-auto pb-32' : 'md:w-2/3'}`}>
                 <div className="mb-8 flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-semibold mb-2">Marcadores</h2>
@@ -381,7 +477,10 @@ export default function App() {
                   <MarkerGrid
                     buttons={customButtons}
                     onMark={(btn, data) => {
-                      if (!isEditingLayout) addMarker(currentTime, btn, data);
+                      if (!isEditingLayout) {
+                        const marker = addMarker(currentTime, btn, data);
+                        if (syncRoomId) syncAddMarker(marker);
+                      }
                     }}
                     onAddCustomButton={addCustomButton}
                     currentTime={currentTime}
@@ -390,11 +489,21 @@ export default function App() {
                 </div>
 
                 {/* Timeline Preview (Optional) */}
-                {markers.length > 0 && (
+                {(markers.length > 0 || remoteMarkers.length > 0) && (
                   <div className="mt-12 p-6 bg-[#1e2130] rounded-3xl border border-white/5">
-                    <h3 className="text-sm font-medium text-zinc-400 mb-4 uppercase tracking-wider">Timeline</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wider">Timeline</h3>
+                      {remoteState.isRecording && !isRecording && (
+                        <span className="flex items-center gap-2 text-xs font-medium text-red-400 bg-red-400/10 px-2 py-1 rounded-md">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          Gravando Remotamente
+                        </span>
+                      )}
+                    </div>
                     <div className="space-y-3">
-                      {markers.slice(-3).reverse().map((m) => (
+                      {Array.from(new Map([...remoteMarkers, ...markers].map(m => [m.id, m])).values())
+                        .sort((a, b) => a.time - b.time)
+                        .slice(-5).reverse().map((m) => (
                         <motion.div 
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -412,6 +521,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
+              </div>
               </div>
             </motion.div>
           )}
