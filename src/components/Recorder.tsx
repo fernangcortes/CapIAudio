@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Mic, Square, Pause, Play, Clapperboard, Loader2 } from 'lucide-react';
 import { Waveform } from './Waveform';
+import { ModeSetupForm } from './ModeSetupForm';
 
 interface RecorderProps {
   isRecording: boolean;
@@ -11,13 +12,14 @@ interface RecorderProps {
   onStop: () => void;
   onPause: () => void;
   modeName?: string;
+  modeId?: string;
   mediaStream?: MediaStream | null;
-  filename: string;
-  setFilename: (name: string) => void;
+  setupData: Record<string, any>;
+  setSetupData: (data: Record<string, any>) => void;
   onAutoClaquete?: () => Promise<void>;
 }
 
-export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, onPause, modeName, mediaStream, filename, setFilename, onAutoClaquete }: RecorderProps) {
+export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, onPause, modeName, modeId, mediaStream, setupData, setSetupData, onAutoClaquete }: RecorderProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const formatTime = (seconds: number) => {
@@ -98,18 +100,16 @@ export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, 
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden w-full max-w-sm mx-auto">
+    <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden w-full max-w-md mx-auto">
       <div className="text-5xl font-mono text-zinc-300 mb-10 z-10 font-light tracking-wider">
         {formatTime(currentTime)}
       </div>
 
       <div className="w-full mb-8 z-10">
-        <input
-          type="text"
-          value={filename}
-          onChange={(e) => setFilename(e.target.value)}
-          placeholder="Nome da gravação..."
-          className="w-full bg-zinc-800/50 border border-zinc-700 rounded-xl px-4 py-3 text-center text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
+        <ModeSetupForm 
+          modeId={modeId || 'default'} 
+          setupData={setupData} 
+          onChange={setSetupData} 
         />
       </div>
 

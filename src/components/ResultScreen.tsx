@@ -36,8 +36,8 @@ export function ResultScreen({ session, onReset, onResume }: ResultScreenProps) 
       const text = await transcribeAudio(currentSession.audioBlobs, currentSession.markers);
       
       // 2. Summary & Tasks
-      setStatusText('Gerando resumo e tarefas...');
-      const data = await generateSummaryAndTasks(text, currentSession.markers);
+      setStatusText('Gerando relatório para a edição...');
+      const data = await generateSummaryAndTasks(text, currentSession.markers, currentSession.setupData, currentSession.modeId);
 
       // 3. Process Locations
       const locMarkers = currentSession.markers.filter(m => m.type === 'location');
@@ -81,6 +81,8 @@ export function ResultScreen({ session, onReset, onResume }: ResultScreenProps) 
         transcription: text,
         summary: data?.summary,
         tasks: data?.tasks,
+        decisions: data?.decisions,
+        intelligentIndex: data?.intelligentIndex,
         images: imgData,
         // we might need to store locations in session if we want to persist them, but for now we can just pass them or add to session type
       };
@@ -160,7 +162,7 @@ export function ResultScreen({ session, onReset, onResume }: ResultScreenProps) 
         audioUrl={audioUrl}
         markers={currentSession.markers}
         transcription={currentSession.transcription || ''}
-        aiData={{ summary: currentSession.summary, tasks: currentSession.tasks }}
+        aiData={{ summary: currentSession.summary, tasks: currentSession.tasks, decisions: currentSession.decisions, intelligentIndex: currentSession.intelligentIndex }}
         locations={[]} // Locations not persisted in session yet, but can be added
         images={currentSession.images || []}
         onReset={onReset}
@@ -176,6 +178,8 @@ export function ResultScreen({ session, onReset, onResume }: ResultScreenProps) 
           setCurrentSession(updatedSession);
           await saveSession(updatedSession);
         }}
+        setupData={currentSession.setupData}
+        modeId={currentSession.modeId}
       />
     </div>
   );

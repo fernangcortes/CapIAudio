@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAudioRecorder } from './hooks/useAudioRecorder';
 import { useMarkers } from './hooks/useMarkers';
 import { useSync } from './hooks/useSync';
@@ -11,19 +11,20 @@ import { CinemaHeader } from './components/CinemaHeader';
 import { Documentation } from './components/Documentation';
 import { AppMode, RecordingSession, ModeConfig, CinemaMetadata } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings2, History, Edit3, Save, Plus, Wifi, Book } from 'lucide-react';
+import { Settings2, History, Edit3, Save, Plus, Wifi, Book, Trash2 } from 'lucide-react';
 import { getAllModes, saveCustomModes, saveSession } from './services/storageService';
 
 export default function App() {
   const [modes, setModes] = useState<Record<string, ModeConfig>>(getAllModes());
-  const [currentModeId, setCurrentModeId] = useState<AppMode>('interview');
-  const currentMode = modes[currentModeId] || modes['interview'];
+  const [currentModeId, setCurrentModeId] = useState<AppMode>('cinema');
+  const currentMode = modes[currentModeId] || modes['cinema'];
   
   const [view, setView] = useState<'recorder' | 'results' | 'history' | 'docs'>('recorder');
   const [showSettings, setShowSettings] = useState(false);
   const [isEditingLayout, setIsEditingLayout] = useState(false);
   const [isEditingModeName, setIsEditingModeName] = useState(false);
   const [editedModeName, setEditedModeName] = useState('');
+  const [modeToDelete, setModeToDelete] = useState<string | null>(null);
   const [syncRoomId, setSyncRoomId] = useState(localStorage.getItem('SYNC_ROOM_ID') || '');
   const [cinemaMetadata, setCinemaMetadata] = useState<CinemaMetadata>({
     movieName: '',
@@ -47,12 +48,36 @@ export default function App() {
     }
     setIsEditingModeName(false);
   };
+
+  const handleDeleteMode = () => {
+    if (currentMode.custom) {
+      setModeToDelete(currentModeId);
+    }
+  };
+
+  const confirmDeleteMode = () => {
+    if (modeToDelete) {
+      const newModes = { ...modes };
+      delete newModes[modeToDelete];
+      setModes(newModes);
+      setCurrentModeId('cinema');
+      
+      const customModesList = (Object.values(newModes) as ModeConfig[]).filter(m => m.custom);
+      saveCustomModes(customModesList);
+      setModeToDelete(null);
+    }
+  };
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [imageModel, setImageModel] = useState(localStorage.getItem('IMAGE_MODEL') || 'gemini-3.1-flash-image-preview');
   const [imageSize, setImageSize] = useState(localStorage.getItem('IMAGE_SIZE') || '512px');
   
   const [currentSession, setCurrentSession] = useState<RecordingSession | null>(null);
-  const [filename, setFilename] = useState('');
+  const [setupData, setSetupData] = useState<Record<string, any>>({});
+  const [pendingBlobs, setPendingBlobs] = useState<Blob[]>([]);
+
+  const handleChunkReady = useCallback((blob: Blob, startTime: number) => {
+    setPendingBlobs(prev => [...prev, blob]);
+  }, []);
 
   const {
     isRecording,
@@ -67,7 +92,10 @@ export default function App() {
     resetRecording,
     setCurrentTime,
     getAudioChunk
-  } = useAudioRecorder();
+  } = useAudioRecorder({
+    onChunkReady: handleChunkReady,
+    chunkDurationMs: 600000 // 10 minutes
+  });
 
   const {
     markers,
@@ -84,6 +112,7 @@ export default function App() {
   useEffect(() => {
     if (!isRecording && !audioBlob && !isEditingLayout) {
       setButtons(currentMode.defaultButtons);
+      setSetupData({}); // Reset setup data when mode changes
     }
   }, [currentModeId, isRecording, audioBlob, setButtons, isEditingLayout]);
 
@@ -125,6 +154,7 @@ export default function App() {
     setModes(newModes);
     setCurrentModeId(newId);
     setButtons([]);
+    setSetupData({});
     setIsEditingLayout(true);
     
     const customModesList = (Object.values(newModes) as ModeConfig[]).filter(m => m.custom);
@@ -147,36 +177,42 @@ export default function App() {
 
   const handleStartRecording = () => {
     if (isEditingLayout) setIsEditingLayout(false);
+    setPendingBlobs([]);
     startRecording();
   };
 
   const handleStop = async () => {
     const newBlob = await stopRecording();
     
+    const sessionTitle = setupData.title || setupData.project || setupData.story || setupData.subject || setupData.interviewee || setupData.doctorName || `Gravação - ${new Date().toLocaleString()}`;
+    
     let session = currentSession;
     if (!session) {
       session = {
         id: Math.random().toString(36).substr(2, 9),
-        title: filename.trim() || `Gravação - ${new Date().toLocaleString()}`,
+        title: sessionTitle,
         date: new Date().toISOString(),
         modeId: currentModeId,
-        audioBlobs: [newBlob],
+        audioBlobs: [...pendingBlobs, newBlob],
         markers: markers,
         duration: currentTime,
-        cinemaMetadata: currentModeId === 'cinema' ? cinemaMetadata : undefined
+        cinemaMetadata: currentModeId === 'cinema' ? cinemaMetadata : undefined,
+        setupData: setupData
       };
     } else {
       session = {
         ...session,
-        title: filename.trim() || session.title,
-        audioBlobs: [...session.audioBlobs, newBlob],
+        title: sessionTitle,
+        audioBlobs: [...session.audioBlobs, ...pendingBlobs, newBlob],
         markers: markers,
         duration: currentTime,
-        cinemaMetadata: currentModeId === 'cinema' ? cinemaMetadata : undefined
+        cinemaMetadata: currentModeId === 'cinema' ? cinemaMetadata : undefined,
+        setupData: setupData
       };
     }
     
     setCurrentSession(session);
+    setPendingBlobs([]);
     await saveSession(session);
     setView('results');
   };
@@ -231,8 +267,8 @@ export default function App() {
     <div className="min-h-screen bg-[#0f111a] text-white font-sans selection:bg-emerald-500/30">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0f111a]/80 backdrop-blur-md border-b border-white/5">
-        <div className="max-w-5xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('recorder')}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 cursor-pointer w-full sm:w-auto justify-center sm:justify-start" onClick={() => setView('recorder')}>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <span className="text-xl font-bold text-black">C</span>
             </div>
@@ -245,9 +281,9 @@ export default function App() {
             )}
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full sm:w-auto">
             {!isRecording && !audioBlob && view === 'recorder' && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
                 {isEditingModeName ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -281,16 +317,25 @@ export default function App() {
                       ))}
                     </select>
                     {currentMode.custom && (
-                      <button 
-                        onClick={() => {
-                          setEditedModeName(currentMode.name);
-                          setIsEditingModeName(true);
-                        }}
-                        className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                        title="Renomear Modo"
-                      >
-                        <Edit3 size={16} />
-                      </button>
+                      <div className="flex items-center">
+                        <button 
+                          onClick={() => {
+                            setEditedModeName(currentMode.name);
+                            setIsEditingModeName(true);
+                          }}
+                          className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                          title="Renomear Modo"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button 
+                          onClick={handleDeleteMode}
+                          className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors"
+                          title="Excluir Modo"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -304,45 +349,72 @@ export default function App() {
               </div>
             )}
             
-            {view !== 'history' && (
-              <div className="relative group">
-                <button 
-                  onClick={() => setView('history')}
-                  className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                >
-                  <History size={20} />
-                </button>
-                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                  Histórico
+            <div className="flex items-center gap-2 justify-center">
+              {view !== 'history' && (
+                <div className="relative group">
+                  <button 
+                    onClick={() => setView('history')}
+                    className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                  >
+                    <History size={20} />
+                  </button>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+                    Histórico
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {view !== 'docs' && (
-              <div className="relative group">
-                <button 
-                  onClick={() => setView('docs')}
-                  className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-                >
-                  <Book size={20} />
-                </button>
-                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                  Documentação
+              {view !== 'docs' && (
+                <div className="relative group">
+                  <button 
+                    onClick={() => setView('docs')}
+                    className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+                  >
+                    <Book size={20} />
+                  </button>
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+                    Documentação
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <div className="relative group">
-              <button onClick={() => setShowSettings(true)} className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
-                <Settings2 size={20} />
-              </button>
-              <div className="absolute top-full mt-2 right-0 px-2 py-1 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                Configurações
+              <div className="relative group">
+                <button onClick={() => setShowSettings(true)} className="p-2.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors">
+                  <Settings2 size={20} />
+                </button>
+                <div className="absolute top-full mt-2 right-0 px-2 py-1 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+                  Configurações
+                </div>
               </div>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Delete Mode Modal */}
+      {modeToDelete && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4">
+          <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 w-full max-w-sm shadow-2xl">
+            <h3 className="text-xl font-medium text-white mb-2">Excluir Modo</h3>
+            <p className="text-sm text-zinc-400 mb-6">Tem certeza que deseja excluir o modo "{modes[modeToDelete]?.name}"? Esta ação não pode ser desfeita.</p>
+            
+            <div className="flex justify-end gap-3 mt-8">
+              <button 
+                onClick={() => setModeToDelete(null)}
+                className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmDeleteMode}
+                className="px-4 py-2 text-sm font-medium bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings Modal */}
       {showSettings && (
@@ -445,9 +517,10 @@ export default function App() {
                       onStop={handleStop}
                       onPause={pauseRecording}
                       modeName={currentMode.name}
+                      modeId={currentModeId}
                       mediaStream={mediaStream}
-                      filename={filename}
-                      setFilename={setFilename}
+                      setupData={setupData}
+                      setSetupData={setSetupData}
                     />
                   </div>
                 )}
@@ -462,44 +535,47 @@ export default function App() {
                     onStop={handleStop}
                     onPause={pauseRecording}
                     modeName={currentMode.name}
+                    modeId={currentModeId}
                     mediaStream={mediaStream}
-                    filename={filename}
-                    setFilename={setFilename}
+                    setupData={setupData}
+                    setSetupData={setSetupData}
                     onAutoClaquete={currentModeId === 'cinema' ? handleAutoClaquete : undefined}
                   />
                 )}
 
                 {/* Right Column: Markers */}
                 <div className={`w-full ${isRecording ? 'md:w-full max-w-3xl mx-auto pb-32' : 'md:w-2/3'}`}>
-                <div className="mb-8 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-semibold mb-2">Marcadores</h2>
-                    <p className="text-zinc-400 text-sm">
-                      {isEditingLayout ? 'Arraste para reordenar, clique no ícone para redimensionar.' : 'Clique nos botões abaixo durante a gravação para registrar momentos importantes.'}
-                    </p>
+                <div className="mb-8">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h2 className="text-2xl font-semibold">Marcadores</h2>
+                    {!isRecording && !audioBlob && (
+                      <button
+                        onClick={() => isEditingLayout ? handleSaveLayout() : setIsEditingLayout(true)}
+                        className={`p-2 rounded-xl transition-colors ${isEditingLayout ? 'bg-emerald-500 text-zinc-900 hover:bg-emerald-400' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                        title={isEditingLayout ? "Salvar Layout" : "Editar Layout"}
+                      >
+                        {isEditingLayout ? <Save size={18} /> : <Edit3 size={18} />}
+                      </button>
+                    )}
                   </div>
-                  {!isRecording && !audioBlob && (
-                    <button
-                      onClick={() => isEditingLayout ? handleSaveLayout() : setIsEditingLayout(true)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${isEditingLayout ? 'bg-emerald-500 text-zinc-900 hover:bg-emerald-400' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
-                    >
-                      {isEditingLayout ? <><Save size={16} /> Salvar Layout</> : <><Edit3 size={16} /> Editar Layout</>}
-                    </button>
-                  )}
+                  <p className="text-zinc-400 text-sm">
+                    {isEditingLayout ? 'Arraste para reordenar. Use os ícones para editar, excluir ou redimensionar.' : 'Clique nos botões abaixo durante a gravação para registrar momentos importantes.'}
+                  </p>
                 </div>
                 
                 <div className={`transition-opacity duration-500 ${isRecording || isEditingLayout ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
                   <MarkerGrid
                     buttons={customButtons}
-                    onMark={(btn, data) => {
+                    onMark={(btn, data, explicitTime) => {
                       if (!isEditingLayout) {
-                        const marker = addMarker(currentTime, btn, data);
+                        const marker = addMarker(currentTime, btn, data, explicitTime);
                         if (syncRoomId) syncAddMarker(marker);
                       }
                     }}
                     onAddCustomButton={addCustomButton}
                     currentTime={currentTime}
                     setButtons={isEditingLayout ? setButtons : undefined}
+                    isEditing={isEditingLayout}
                   />
                 </div>
 
@@ -568,6 +644,7 @@ export default function App() {
                   setCurrentModeId(session.modeId);
                   setCurrentTime(session.duration);
                   setMarkers(session.markers);
+                  if (session.setupData) setSetupData(session.setupData);
                   setView('recorder');
                 }}
               />

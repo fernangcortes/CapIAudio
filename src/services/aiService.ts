@@ -16,30 +16,31 @@ export async function transcribeAudio(audioBlobs: Blob[], markers: Marker[] = []
     }
 
     const ai = getAiClient();
+    let fullTranscription = '';
     
-    const parts: any[] = [];
-    for (const blob of audioBlobs) {
-      const base64Data = await blobToBase64(blob);
-      if (base64Data) {
-        parts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: blob.type || 'audio/webm'
-          }
-        });
-      }
-    }
-
-    if (parts.length === 0) {
-      return 'Erro ao processar o áudio (vazio).';
-    }
-
     const speakerMarkers = markers.filter(m => m.type === 'person' && typeof m.data === 'string' && m.data.startsWith('Falando:'));
     const speakerContext = speakerMarkers.length > 0 
       ? `\n\nATENÇÃO AOS PARTICIPANTES:\nDurante a gravação, o usuário marcou os momentos em que cada pessoa começou a falar. Aqui estão as marcações de tempo (em segundos):\n${speakerMarkers.map(m => `- Aos ${Math.floor(m.time)} segundos: ${m.data.replace('Falando: ', '')}`).join('\n')}\n\nUse essas marcações de tempo para identificar as falas e colocar o nome da pessoa antes da fala na transcrição (ex: "João: Olá pessoal").` 
       : '';
 
-    const prompt = `Transcreva este áudio em português do Brasil com EXTREMA PRECISÃO e IDENTIFICAÇÃO AUTOMÁTICA DE LOCUTORES (Diarization).
+    for (let i = 0; i < audioBlobs.length; i++) {
+      const blob = audioBlobs[i];
+      const startTimeMin = i * 10;
+      const endTimeMin = (i + 1) * 10;
+      
+      const base64Data = await blobToBase64(blob);
+      if (!base64Data) continue;
+
+      const parts: any[] = [
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: blob.type || 'audio/webm'
+          }
+        }
+      ];
+
+      const prompt = `Transcreva este trecho de áudio (minutos ${startTimeMin} a ${endTimeMin}) em português do Brasil com EXTREMA PRECISÃO e IDENTIFICAÇÃO AUTOMÁTICA DE LOCUTORES (Diarization).
 REGRAS CRUCIAIS E INEGOCIÁVEIS:
 1. IDENTIFIQUE QUANDO A VOZ MUDA: Separe as falas por personagem/locutor. Se você não souber o nome, use "Locutor 1:", "Locutor 2:", etc.
 2. NÃO INVENTE NENHUMA PALAVRA OU FRASE. O texto transcrito deve ser EXATAMENTE IGUAL ao falado.
@@ -49,71 +50,235 @@ REGRAS CRUCIAIS E INEGOCIÁVEIS:
 6. Se você não tiver certeza de uma palavra ou frase, mas precisar tentar adivinhar pelo contexto para fazer sentido, coloque-a entre asteriscos duplos. Exemplo: **palavra**.
 7. Separe em parágrafos se houver pausas longas ou troca de locutor.${speakerContext}`;
 
-    parts.push({ text: prompt });
+      parts.push({ text: prompt });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite-preview',
-      contents: [
-        {
-          parts: parts,
-        },
-      ],
-    });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite-preview',
+        contents: [{ parts }],
+      });
 
-    return response.text || 'Transcrição não disponível.';
+      const text = response.text || '';
+      if (text.trim()) {
+        fullTranscription += `\n\n### ⏱️ Bloco ${i + 1} [${startTimeMin.toString().padStart(2, '0')}:00 - ${endTimeMin.toString().padStart(2, '0')}:00]\n${text}`;
+      }
+    }
+
+    return fullTranscription.trim() || 'Transcrição não disponível ou áudio vazio.';
   } catch (error) {
     console.error('Erro na transcrição:', error);
     return 'Erro ao processar a transcrição. Verifique sua API Key.';
   }
 }
 
-export async function generateSummaryAndTasks(transcription: string, markers: Marker[]): Promise<any> {
+export async function generateSummaryAndTasks(transcription: string, markers: Marker[], setupData?: Record<string, any>, modeId?: string): Promise<any> {
   try {
     const ai = getAiClient();
     const markersContext = markers.map(m => `[${formatTime(m.time)}] ${m.icon} ${m.label} ${m.data ? `(${m.data})` : ''}`).join('\n');
     
-    const prompt = `
-      Aqui está a transcrição de uma gravação:
-      "${transcription}"
+    let setupContext = '';
+    if (setupData && Object.keys(setupData).length > 0) {
+      setupContext = `\n\nINFORMAÇÕES DE CONTEXTO (Formulário Preenchido pelo Usuário antes da gravação):\n`;
+      for (const [key, value] of Object.entries(setupData)) {
+        setupContext += `- ${key}: ${value}\n`;
+      }
+      setupContext += `Use essas informações para enriquecer o resumo e entender melhor o contexto da gravação.`;
+    }
 
-      Aqui estão os marcadores de tempo feitos pelo usuário durante a gravação:
-      ${markersContext}
+    let prompt = '';
+    let responseSchema: any = {};
 
-      Com base nisso, gere:
-      1. Um resumo executivo da gravação.
-      2. Uma lista de tarefas (action items) identificadas.
-      3. Uma lista de decisões tomadas.
-    `;
+    if (modeId === 'cinema') {
+      prompt = `
+        Aqui está a transcrição de uma gravação de set de filmagem, dividida em blocos temporais de 10 minutos:
+        "${transcription}"
+
+        Aqui estão os marcadores de tempo feitos manualmente durante a gravação (claquetes, cortes, erros, etc):
+        ${markersContext}
+        ${setupContext}
+
+        Com base nisso, gere um relatório detalhado e útil para o EDITOR DE VÍDEO.
+        O relatório deve conter:
+        1. Um resumo geral da gravação (o que foi filmado, contexto geral).
+        2. Uma lista de observações importantes para a edição (erros, melhores takes, problemas técnicos mencionados).
+        3. Uma lista de decisões de direção ou notas de continuidade.
+        4. Um Índice Inteligente (Log de Decupagem): Analise a transcrição e os marcadores para criar um log detalhado de cada take/cena, indicando o tempo, o que aconteceu e se foi bom ou ruim.
+      `;
+      responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          summary: { type: Type.STRING, description: 'Resumo geral da gravação para o editor' },
+          tasks: { 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING },
+            description: 'Observações importantes para a edição (erros, melhores takes, etc)'
+          },
+          decisions: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'Decisões de direção ou notas de continuidade'
+          },
+          intelligentIndex: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                topic: { type: Type.STRING, description: 'Descrição do take, cena ou evento' },
+                timeframe: { type: Type.STRING, description: 'Tempo exato ou bloco temporal (ex: 01:23 ou Bloco 1)' }
+              },
+              required: ['topic', 'timeframe']
+            },
+            description: 'Log de decupagem detalhado'
+          }
+        },
+        required: ['summary', 'tasks', 'decisions', 'intelligentIndex']
+      };
+    } else if (modeId === 'medical_doctor') {
+      prompt = `
+        Aqui está a transcrição de uma consulta médica, dividida em blocos temporais de 10 minutos:
+        "${transcription}"
+
+        Aqui estão os marcadores de tempo feitos pelo médico durante a consulta:
+        ${markersContext}
+        ${setupContext}
+
+        Com base nisso, gere um Prontuário Médico estruturado (padrão SOAP ou similar) contendo:
+        1. Um resumo clínico da consulta (Subjetivo e Objetivo).
+        2. Uma lista de condutas e prescrições (Plano).
+        3. Uma lista de diagnósticos ou hipóteses diagnósticas (Avaliação).
+        4. Um Índice Inteligente: Analise a transcrição e crie um índice listando os principais tópicos abordados na anamnese e exame físico, com o bloco temporal aproximado.
+      `;
+      responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          summary: { type: Type.STRING, description: 'Resumo clínico da consulta (Subjetivo e Objetivo)' },
+          tasks: { 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING },
+            description: 'Lista de condutas, exames solicitados e prescrições (Plano)'
+          },
+          decisions: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'Diagnósticos ou hipóteses diagnósticas (Avaliação)'
+          },
+          intelligentIndex: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                topic: { type: Type.STRING, description: 'Tópico da anamnese ou exame' },
+                timeframe: { type: Type.STRING, description: 'Bloco temporal aproximado (ex: Bloco 1 [00:00 - 10:00])' }
+              },
+              required: ['topic', 'timeframe']
+            },
+            description: 'Índice inteligente de tópicos da consulta'
+          }
+        },
+        required: ['summary', 'tasks', 'decisions', 'intelligentIndex']
+      };
+    } else if (modeId === 'medical_patient') {
+      prompt = `
+        Aqui está a transcrição de uma consulta médica, dividida em blocos temporais de 10 minutos:
+        "${transcription}"
+
+        Aqui estão os marcadores de tempo feitos pelo paciente durante a consulta:
+        ${markersContext}
+        ${setupContext}
+
+        Com base nisso, gere um Resumo para o Paciente, em linguagem clara e acessível, contendo:
+        1. Um resumo fácil de entender sobre o que foi conversado e explicado pelo médico.
+        2. Uma lista de próximos passos (exames a marcar, remédios a tomar, mudanças de hábito).
+        3. Uma lista de diagnósticos ou conclusões explicadas de forma simples.
+        4. Um Índice Inteligente: Analise a transcrição e crie um índice listando as principais dúvidas respondidas ou orientações dadas, com o bloco temporal aproximado.
+      `;
+      responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          summary: { type: Type.STRING, description: 'Resumo da consulta em linguagem acessível para o paciente' },
+          tasks: { 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING },
+            description: 'Próximos passos práticos (remédios, exames, retornos)'
+          },
+          decisions: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'Conclusões ou diagnósticos explicados de forma simples'
+          },
+          intelligentIndex: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                topic: { type: Type.STRING, description: 'Dúvida respondida ou orientação dada' },
+                timeframe: { type: Type.STRING, description: 'Bloco temporal aproximado (ex: Bloco 1 [00:00 - 10:00])' }
+              },
+              required: ['topic', 'timeframe']
+            },
+            description: 'Índice inteligente de orientações e dúvidas'
+          }
+        },
+        required: ['summary', 'tasks', 'decisions', 'intelligentIndex']
+      };
+    } else {
+      prompt = `
+        Aqui está a transcrição de uma gravação, dividida em blocos temporais de 10 minutos:
+        "${transcription}"
+
+        Aqui estão os marcadores de tempo feitos pelo usuário durante a gravação:
+        ${markersContext}
+        ${setupContext}
+
+        Com base nisso, gere um relatório estruturado contendo:
+        1. Um resumo executivo da gravação (incorporando o contexto fornecido, se houver).
+        2. Uma lista de tarefas (action items) identificadas.
+        3. Uma lista de decisões tomadas.
+        4. Um Índice Inteligente (Topic Index): Analise a transcrição e identifique quando o assunto principal muda. Crie um índice listando os tópicos discutidos e o bloco temporal aproximado onde eles ocorrem.
+      `;
+      responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          summary: { type: Type.STRING, description: 'Resumo executivo' },
+          tasks: { 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING },
+            description: 'Lista de tarefas'
+          },
+          decisions: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'Lista de decisões'
+          },
+          intelligentIndex: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                topic: { type: Type.STRING, description: 'Tópico ou assunto discutido' },
+                timeframe: { type: Type.STRING, description: 'Bloco temporal aproximado (ex: Bloco 1 [00:00 - 10:00])' }
+              },
+              required: ['topic', 'timeframe']
+            },
+            description: 'Índice inteligente de mudança de assuntos'
+          }
+        },
+        required: ['summary', 'tasks', 'decisions', 'intelligentIndex']
+      };
+    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.1-flash-lite-preview',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            summary: { type: Type.STRING, description: 'Resumo executivo' },
-            tasks: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING },
-              description: 'Lista de tarefas'
-            },
-            decisions: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: 'Lista de decisões'
-            }
-          },
-          required: ['summary', 'tasks', 'decisions']
-        }
+        responseSchema: responseSchema
       }
     });
 
     return JSON.parse(response.text || '{}');
   } catch (error) {
     console.error('Erro ao gerar resumo:', error);
-    return { summary: 'Erro ao gerar resumo. Verifique sua API Key.', tasks: [], decisions: [] };
+    return { summary: 'Erro ao gerar resumo. Verifique sua API Key.', tasks: [], decisions: [], intelligentIndex: [] };
   }
 }
 

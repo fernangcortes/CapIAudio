@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Marker } from '../types';
-import { downloadAudio, generatePremiereXML, generateDaVinciCSV } from '../services/exportService';
-import { motion } from 'motion/react';
-import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2, Edit2, Check } from 'lucide-react';
+import { Marker, RecordingSession } from '../types';
+import { downloadAudio, generatePremiereXML, generateDaVinciCSV, exportSessionToZip } from '../services/exportService';
+import { motion, AnimatePresence } from 'motion/react';
+import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2, Edit2, Check, MessageSquare, Archive, X } from 'lucide-react';
 
 interface RecordingViewerProps {
   audioBlob: Blob;
@@ -20,6 +20,8 @@ interface RecordingViewerProps {
   onTitleChange?: (newTitle: string) => void;
   onTranscriptionChange?: (newTranscription: string) => void;
   cinemaMetadata?: any;
+  setupData?: Record<string, any>;
+  modeId?: string;
 }
 
 export function RecordingViewer({ 
@@ -37,12 +39,23 @@ export function RecordingViewer({
   title,
   onTitleChange,
   onTranscriptionChange,
-  cinemaMetadata
+  cinemaMetadata,
+  setupData,
+  modeId
 }: RecordingViewerProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title || '');
   const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
   const [newSpeakerName, setNewSpeakerName] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportOptions, setExportOptions] = useState({
+    audio: true,
+    transcription: true,
+    summary: true,
+    markersCsv: true,
+    premiereXml: false,
+    davinciCsv: false
+  });
 
   const handleSaveTitle = () => {
     if (onTitleChange && editedTitle.trim()) {
@@ -64,12 +77,71 @@ export function RecordingViewer({
     setNewSpeakerName('');
   };
 
+  const handleExportZip = async () => {
+    const tempSession: RecordingSession = {
+      id: 'temp',
+      title: title || 'Gravacao',
+      date: new Date().toISOString(),
+      modeId: 'temp',
+      audioBlobs: [audioBlob],
+      markers: markers,
+      duration: 0,
+      transcription: transcription,
+      summary: aiData?.summary,
+      tasks: aiData?.tasks,
+      cinemaMetadata: cinemaMetadata
+    };
+    await exportSessionToZip(tempSession, exportOptions);
+    setShowExportModal(false);
+  };
+
   // Extract unique speakers from markers
   const knownSpeakers = Array.from(new Set(
     markers
       .filter(m => m.type === 'person' && typeof m.data === 'string' && m.data.startsWith('Falando:'))
       .map(m => m.data.replace('Falando: ', '').trim())
   ));
+
+  const getTasksLabel = () => {
+    if (modeId === 'cinema') return 'Observações para Edição';
+    if (modeId === 'medical_doctor') return 'Plano (Condutas e Prescrições)';
+    if (modeId === 'medical_patient') return 'Próximos Passos';
+    return 'Action Items';
+  };
+
+  const getTasksEmptyLabel = () => {
+    if (modeId === 'cinema') return 'Nenhuma observação identificada.';
+    if (modeId === 'medical_doctor') return 'Nenhuma conduta identificada.';
+    if (modeId === 'medical_patient') return 'Nenhum passo identificado.';
+    return 'Nenhuma tarefa identificada.';
+  };
+
+  const getDecisionsLabel = () => {
+    if (modeId === 'cinema') return 'Decisões de Direção / Continuidade';
+    if (modeId === 'medical_doctor') return 'Avaliação (Diagnósticos)';
+    if (modeId === 'medical_patient') return 'Conclusões / Diagnósticos';
+    return 'Decisões';
+  };
+
+  const getDecisionsEmptyLabel = () => {
+    if (modeId === 'medical_doctor') return 'Nenhum diagnóstico identificado.';
+    if (modeId === 'medical_patient') return 'Nenhuma conclusão identificada.';
+    return 'Nenhuma decisão identificada.';
+  };
+
+  const getIndexLabel = () => {
+    if (modeId === 'cinema') return 'Log de Decupagem';
+    if (modeId === 'medical_doctor') return 'Tópicos da Anamnese/Exame';
+    if (modeId === 'medical_patient') return 'Orientações e Dúvidas';
+    return 'Índice Inteligente de Assuntos';
+  };
+
+  const getExportSummaryLabel = () => {
+    if (modeId === 'cinema') return 'Relatório de Edição (.txt)';
+    if (modeId === 'medical_doctor') return 'Prontuário Médico (.txt)';
+    if (modeId === 'medical_patient') return 'Resumo para Paciente (.txt)';
+    return 'Resumo e Tarefas (.txt)';
+  };
 
   return (
     <motion.div 
@@ -136,9 +208,12 @@ export function RecordingViewer({
       </div>
 
       {/* Export Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <button onClick={() => setShowExportModal(true)} className="flex items-center justify-center gap-2 p-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-2xl transition-colors border border-emerald-500/20">
+          <Archive size={20} /> Baixar ZIP
+        </button>
         <button onClick={() => downloadAudio(audioUrl)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
-          <Download size={20} /> Baixar Áudio (.webm)
+          <Download size={20} /> Áudio (.webm)
         </button>
         <button onClick={() => generatePremiereXML(markers, cinemaMetadata)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
           <FileVideo size={20} /> XML (Premiere)
@@ -153,10 +228,26 @@ export function RecordingViewer({
         <h3 className="text-xl font-medium text-emerald-400 mb-4">Resumo Executivo</h3>
         <p className="text-zinc-300 leading-relaxed mb-8">{aiData?.summary || 'Gerando resumo...'}</p>
 
+        {setupData && Object.keys(setupData).length > 0 && (
+          <div className="mb-8">
+            <h4 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+              <span className="text-indigo-400">📋</span> Dados do Formulário
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {Object.entries(setupData).map(([key, value]) => (
+                <div key={key} className="bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30">
+                  <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{key}</div>
+                  <div className="text-zinc-300">{value as React.ReactNode}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <h4 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-              <span className="text-blue-400">📌</span> Action Items
+              <span className="text-blue-400">📌</span> {getTasksLabel()}
             </h4>
             <ul className="space-y-3">
               {aiData?.tasks?.map((task: string, i: number) => (
@@ -165,13 +256,13 @@ export function RecordingViewer({
                   <span>{task}</span>
                 </li>
               ))}
-              {(!aiData?.tasks || aiData.tasks.length === 0) && <li className="text-zinc-600">Nenhuma tarefa identificada.</li>}
+              {(!aiData?.tasks || aiData.tasks.length === 0) && <li className="text-zinc-600">{getTasksEmptyLabel()}</li>}
             </ul>
           </div>
           
           <div>
             <h4 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-              <span className="text-green-400">✅</span> Decisões
+              <span className="text-green-400">✅</span> {getDecisionsLabel()}
             </h4>
             <ul className="space-y-3">
               {aiData?.decisions?.map((dec: string, i: number) => (
@@ -180,11 +271,32 @@ export function RecordingViewer({
                   <span>{dec}</span>
                 </li>
               ))}
-              {(!aiData?.decisions || aiData.decisions.length === 0) && <li className="text-zinc-600">Nenhuma decisão identificada.</li>}
+              {(!aiData?.decisions || aiData.decisions.length === 0) && <li className="text-zinc-600">{getDecisionsEmptyLabel()}</li>}
             </ul>
           </div>
         </div>
       </div>
+
+      {/* Intelligent Index */}
+      {aiData?.intelligentIndex && aiData.intelligentIndex.length > 0 && (
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8">
+          <h3 className="text-xl font-medium text-purple-400 mb-6 flex items-center gap-2">
+            <span className="text-2xl">🧠</span> {getIndexLabel()}
+          </h3>
+          <div className="space-y-4">
+            {aiData.intelligentIndex.map((item: any, i: number) => (
+              <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-800/30 p-4 rounded-xl border border-zinc-700/30">
+                <div className="bg-purple-500/20 text-purple-300 px-3 py-1 rounded-lg text-sm font-mono whitespace-nowrap">
+                  {item.timeframe}
+                </div>
+                <div className="text-zinc-300">
+                  {item.topic}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Locations */}
       {locations.length > 0 && (
@@ -221,6 +333,35 @@ export function RecordingViewer({
                 <img src={img.url} alt={`Visualização ${i}`} className="w-full h-auto object-cover aspect-video" referrerPolicy="no-referrer" />
                 <div className="p-4">
                   <p className="text-sm text-zinc-400">Gerado a partir do marcador em {Math.floor(img.marker.time)}s</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Markers & Comments */}
+      {markers.length > 0 && (
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8">
+          <h3 className="text-xl font-medium text-white mb-6 flex items-center gap-2">
+            <MessageSquare className="text-emerald-400" /> Marcadores e Comentários
+          </h3>
+          <div className="space-y-4">
+            {markers.map((marker, i) => (
+              <div key={i} className="flex items-start gap-4 bg-zinc-800/30 p-4 rounded-2xl border border-zinc-700/30">
+                <div className="flex-shrink-0 w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-2xl">
+                  {marker.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-white">{marker.label}</span>
+                    <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-md">
+                      {Math.floor(marker.time / 60)}:{(Math.floor(marker.time % 60)).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  {marker.data && (
+                    <p className="text-zinc-400 text-sm">{marker.data}</p>
+                  )}
                 </div>
               </div>
             ))}
@@ -334,6 +475,100 @@ export function RecordingViewer({
                 className="px-4 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Substituir Todos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Export ZIP Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <Archive className="text-emerald-500" /> Exportar ZIP
+              </h3>
+              <button 
+                onClick={() => setShowExportModal(false)}
+                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p className="text-zinc-400 text-sm mb-6">
+              Selecione os arquivos que deseja incluir no pacote ZIP:
+            </p>
+
+            <div className="space-y-3 mb-8">
+              <label className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={exportOptions.audio}
+                  onChange={(e) => setExportOptions({...exportOptions, audio: e.target.checked})}
+                  className="w-5 h-5 rounded border-zinc-600 text-emerald-500 focus:ring-emerald-500 bg-zinc-700"
+                />
+                <span className="text-zinc-200">Áudio Original (.webm)</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={exportOptions.transcription}
+                  onChange={(e) => setExportOptions({...exportOptions, transcription: e.target.checked})}
+                  className="w-5 h-5 rounded border-zinc-600 text-emerald-500 focus:ring-emerald-500 bg-zinc-700"
+                />
+                <span className="text-zinc-200">Transcrição Completa (.txt)</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={exportOptions.summary}
+                  onChange={(e) => setExportOptions({...exportOptions, summary: e.target.checked})}
+                  className="w-5 h-5 rounded border-zinc-600 text-emerald-500 focus:ring-emerald-500 bg-zinc-700"
+                />
+                <span className="text-zinc-200">{getExportSummaryLabel()}</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={exportOptions.markersCsv}
+                  onChange={(e) => setExportOptions({...exportOptions, markersCsv: e.target.checked})}
+                  className="w-5 h-5 rounded border-zinc-600 text-emerald-500 focus:ring-emerald-500 bg-zinc-700"
+                />
+                <span className="text-zinc-200">Marcadores Genéricos (.csv)</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={exportOptions.premiereXml}
+                  onChange={(e) => setExportOptions({...exportOptions, premiereXml: e.target.checked})}
+                  className="w-5 h-5 rounded border-zinc-600 text-emerald-500 focus:ring-emerald-500 bg-zinc-700"
+                />
+                <span className="text-zinc-200">Marcadores Premiere (.xml)</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={exportOptions.davinciCsv}
+                  onChange={(e) => setExportOptions({...exportOptions, davinciCsv: e.target.checked})}
+                  className="w-5 h-5 rounded border-zinc-600 text-emerald-500 focus:ring-emerald-500 bg-zinc-700"
+                />
+                <span className="text-zinc-200">Marcadores DaVinci (.csv)</span>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowExportModal(false)} 
+                className="px-4 py-2 text-zinc-400 hover:text-white"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleExportZip} 
+                className="px-6 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400 transition-colors flex items-center gap-2"
+              >
+                <Download size={18} /> Baixar
               </button>
             </div>
           </div>

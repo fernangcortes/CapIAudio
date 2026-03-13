@@ -1,4 +1,4 @@
-export type MarkerType = 'action' | 'decision' | 'person' | 'location' | 'image' | 'custom' | 'cut' | 'emotion' | 'quote' | 'cinema_action' | 'cinema_cut' | 'cinema_good' | 'cinema_error' | 'cinema_note';
+export type MarkerType = 'action' | 'decision' | 'person' | 'location' | 'image' | 'custom' | 'cut' | 'emotion' | 'quote' | 'cinema_action' | 'cinema_cut' | 'cinema_good' | 'cinema_error' | 'cinema_note' | 'comment';
 
 export interface Marker {
   id: string;
@@ -16,6 +16,7 @@ export interface CustomButton {
   type: MarkerType;
   span?: 1 | 2;
   color?: string; // Hex color for cinema markers
+  tooltip?: string; // Explanatory tooltip
 }
 
 export type AppMode = string;
@@ -58,6 +59,8 @@ export interface CinemaMetadata {
   rollCard?: string;
   lens?: string;
   goodTake?: boolean;
+  director?: string;
+  dop?: string;
 }
 
 export interface RecordingSession {
@@ -71,6 +74,9 @@ export interface RecordingSession {
   transcription?: string;
   summary?: string;
   tasks?: any[];
+  decisions?: any[];
+  intelligentIndex?: { topic: string; timeframe: string }[];
   images?: any[];
   cinemaMetadata?: CinemaMetadata;
+  setupData?: Record<string, any>;
 }

@@ -23,11 +23,12 @@ import { CSS } from '@dnd-kit/utilities';
 interface MarkerGridProps {
   buttons: CustomButton[];
   setButtons?: (buttons: CustomButton[]) => void;
-  onMark: (button: CustomButton, data?: any) => void;
+  onMark: (button: CustomButton, data?: any, explicitTime?: number) => void;
   onAddCustomButton: (icon: string, label: string, type?: MarkerType) => void;
   currentTime: number;
   speakers?: {id: string, name: string}[];
   onAddSpeaker?: (name: string) => void;
+  isEditing?: boolean;
 }
 
 interface SortableButtonProps {
@@ -35,16 +36,19 @@ interface SortableButtonProps {
   btn: CustomButton;
   onMark: any;
   onResize: any;
+  onEdit?: (btn: CustomButton) => void;
+  onDelete?: (id: string) => void;
+  isEditing?: boolean;
 }
 
-function SortableButton({ btn, onMark, onResize }: SortableButtonProps) {
+function SortableButton({ btn, onMark, onResize, onEdit, onDelete, isEditing }: SortableButtonProps) {
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
-  } = useSortable({ id: btn.id });
+  } = useSortable({ id: btn.id, disabled: !isEditing });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -71,23 +75,47 @@ function SortableButton({ btn, onMark, onResize }: SortableButtonProps) {
         onClick={() => onMark(btn)}
         {...attributes}
         {...listeners}
-        className={`w-full flex flex-col items-center justify-center p-4 rounded-2xl border transition-colors shadow-sm touch-none ${colorClasses}`}
+        className={`w-full flex flex-col items-center justify-center p-2 sm:p-3 rounded-xl border transition-colors shadow-sm touch-none ${colorClasses}`}
+        title={btn.tooltip || btn.label}
       >
-        <span className="text-3xl mb-2">{btn.icon}</span>
-        <span className={`text-sm font-medium ${btn.color ? '' : 'text-zinc-300'}`}>{btn.label}</span>
+        <span className="text-2xl sm:text-3xl mb-1">{btn.icon}</span>
+        <span className={`text-xs sm:text-sm font-medium text-center leading-tight ${btn.color ? '' : 'text-zinc-300'}`}>{btn.label}</span>
       </motion.button>
-      <button 
-        onClick={(e) => { e.stopPropagation(); onResize(btn.id); }}
-        className="absolute top-2 right-2 text-zinc-500 hover:text-white p-1.5 bg-zinc-900/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Redimensionar"
-      >
-        {btn.span === 2 ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-      </button>
+      
+      {isEditing && (
+        <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-100 transition-opacity">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onResize(btn.id); }}
+            className="text-zinc-500 hover:text-white p-1 bg-zinc-900/80 rounded-lg"
+            title="Redimensionar"
+          >
+            {btn.span === 2 ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+          </button>
+          {onEdit && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onEdit(btn); }}
+              className="text-zinc-500 hover:text-white p-1 bg-zinc-900/80 rounded-lg"
+              title="Editar"
+            >
+              <span className="text-[10px]">✏️</span>
+            </button>
+          )}
+          {onDelete && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onDelete(btn.id); }}
+              className="text-red-500 hover:text-red-400 p-1 bg-zinc-900/80 rounded-lg"
+              title="Excluir"
+            >
+              <span className="text-[10px]">🗑️</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, currentTime }: MarkerGridProps) {
+export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, currentTime, isEditing }: MarkerGridProps) {
   const [showPersonModal, setShowPersonModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showAddSpeakerModal, setShowAddSpeakerModal] = useState(false);
@@ -114,7 +142,7 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
   );
 
   const handleMark = (btn: CustomButton) => {
-    if (btn.type === 'cinema_note' || btn.type === 'cinema_error') {
+    if (btn.type === 'cinema_note' || btn.type === 'cinema_error' || btn.type === 'comment') {
       setSavedTime(currentTime);
       setNoteType(btn.type);
       setNoteButton(btn);
@@ -126,7 +154,7 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
 
   const saveNoteMarker = () => {
     if (noteText.trim() && noteButton) {
-      onMark(noteButton, noteText);
+      onMark(noteButton, noteText, savedTime);
     }
     setShowNoteModal(false);
     setNoteText('');
@@ -160,14 +188,24 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
     setShowPersonModal(true);
   };
 
-  const handleCustomClick = () => {
-    setSavedTime(currentTime);
+  const [editingButton, setEditingButton] = useState<CustomButton | null>(null);
+
+  const handleEditButton = (btn: CustomButton) => {
+    setEditingButton(btn);
+    setCustomIcon(btn.icon);
+    setCustomLabel(btn.label);
     setShowCustomModal(true);
+  };
+
+  const handleDeleteButton = (id: string) => {
+    if (setButtons) {
+      setButtons(buttons.filter(b => b.id !== id));
+    }
   };
 
   const savePersonMarker = () => {
     if (personName.trim()) {
-      onMark({ id: 'temp-person', icon: '👤', label: 'Pessoa', type: 'person' }, personName);
+      onMark({ id: 'temp-person', icon: '👤', label: 'Pessoa', type: 'person' }, personName, savedTime);
     }
     setShowPersonModal(false);
     setPersonName('');
@@ -183,12 +221,31 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
 
   const saveCustomButton = () => {
     if (customLabel.trim()) {
-      onAddCustomButton(customIcon, customLabel);
-      onMark({ id: 'temp-custom', icon: customIcon, label: customLabel, type: 'custom' });
+      if (editingButton && setButtons) {
+        // Edit existing button
+        setButtons(buttons.map(b => 
+          b.id === editingButton.id 
+            ? { ...b, icon: customIcon, label: customLabel }
+            : b
+        ));
+      } else {
+        // Create new button
+        onAddCustomButton(customIcon, customLabel);
+        onMark({ id: 'temp-custom', icon: customIcon, label: customLabel, type: 'custom' }, undefined, savedTime);
+      }
     }
     setShowCustomModal(false);
     setCustomLabel('');
     setCustomIcon('📌');
+    setEditingButton(null);
+  };
+
+  const handleCustomClick = () => {
+    setSavedTime(currentTime);
+    setEditingButton(null);
+    setCustomIcon('📌');
+    setCustomLabel('');
+    setShowCustomModal(true);
   };
 
   return (
@@ -202,13 +259,16 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
           items={buttons.map(b => b.id)}
           strategy={rectSortingStrategy}
         >
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 mb-6">
             {buttons.map((btn) => (
               <SortableButton 
                 key={btn.id} 
                 btn={btn} 
                 onMark={handleMark} 
                 onResize={toggleButtonSize} 
+                onEdit={isEditing ? handleEditButton : undefined}
+                onDelete={isEditing ? handleDeleteButton : undefined}
+                isEditing={isEditing}
               />
             ))}
           </div>
@@ -311,7 +371,9 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
       {showCustomModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 w-full max-w-sm">
-            <h3 className="text-lg font-medium text-white mb-4">Novo Botão (Tempo: {Math.floor(savedTime)}s)</h3>
+            <h3 className="text-lg font-medium text-white mb-4">
+              {editingButton ? 'Editar Botão' : `Novo Botão (Tempo: ${Math.floor(savedTime)}s)`}
+            </h3>
             <div className="flex gap-3 mb-4">
               <input
                 type="text"
@@ -330,8 +392,10 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
               />
             </div>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setShowCustomModal(false)} className="px-4 py-2 text-zinc-400 hover:text-white">Cancelar</button>
-              <button onClick={saveCustomButton} className="px-4 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400">Criar e Marcar</button>
+              <button onClick={() => { setShowCustomModal(false); setEditingButton(null); }} className="px-4 py-2 text-zinc-400 hover:text-white">Cancelar</button>
+              <button onClick={saveCustomButton} className="px-4 py-2 bg-emerald-500 text-zinc-900 font-medium rounded-xl hover:bg-emerald-400">
+                {editingButton ? 'Salvar' : 'Criar e Marcar'}
+              </button>
             </div>
           </div>
         </div>
@@ -341,11 +405,11 @@ export function MarkerGrid({ buttons, setButtons, onMark, onAddCustomButton, cur
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 w-full max-w-sm">
             <h3 className="text-lg font-medium text-white mb-4">
-              {noteType === 'cinema_error' ? 'Registrar Problema' : 'Nota de Continuidade'} (Tempo: {Math.floor(savedTime)}s)
+              {noteType === 'cinema_error' ? 'Registrar Problema' : noteType === 'comment' ? 'Adicionar Comentário' : 'Nota de Continuidade'} (Tempo: {Math.floor(savedTime)}s)
             </h3>
             <textarea
               autoFocus
-              placeholder={noteType === 'cinema_error' ? "Descreva o problema (ex: Avião passou, foco perdido)..." : "Descreva a nota de continuidade..."}
+              placeholder={noteType === 'cinema_error' ? "Descreva o problema (ex: Avião passou, foco perdido)..." : noteType === 'comment' ? "Digite seu comentário..." : "Descreva a nota de continuidade..."}
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-white mb-4 focus:outline-none focus:border-emerald-500 min-h-[100px] resize-none"

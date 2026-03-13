@@ -208,6 +208,115 @@ export async function exportProjectToZip(project: CinemaProject) {
   saveAs(zipBlob, `${project.name || 'Projeto'}.zip`);
 }
 
+export async function exportSessionToZip(
+  session: RecordingSession,
+  selectedFiles: {
+    audio: boolean;
+    transcription: boolean;
+    summary: boolean;
+    markersCsv: boolean;
+    premiereXml: boolean;
+    davinciCsv: boolean;
+  }
+) {
+  const zip = new JSZip();
+  const baseFilename = session.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+  // 1. Audio File
+  if (selectedFiles.audio && session.audioBlobs && session.audioBlobs.length > 0) {
+    const combinedBlob = new Blob(session.audioBlobs, { type: 'audio/webm' });
+    zip.file(`${baseFilename}.webm`, combinedBlob);
+  }
+
+  // 2. Transcription
+  if (selectedFiles.transcription && session.transcription) {
+    zip.file(`${baseFilename}_transcricao.txt`, session.transcription);
+  }
+
+  // 3. Summary & Tasks
+  if (selectedFiles.summary && (session.summary || session.tasks)) {
+    let summaryContent = '';
+    if (session.modeId === 'cinema') {
+      if (session.summary) summaryContent += `Resumo Geral:\n${session.summary}\n\n`;
+      if (session.tasks && session.tasks.length > 0) {
+        summaryContent += `Observações para Edição:\n${session.tasks.map(t => `- ${t}`).join('\n')}\n\n`;
+      }
+      if (session.decisions && session.decisions.length > 0) {
+        summaryContent += `Decisões de Direção / Continuidade:\n${session.decisions.map(d => `- ${d}`).join('\n')}\n\n`;
+      }
+      if (session.intelligentIndex && session.intelligentIndex.length > 0) {
+        summaryContent += `Log de Decupagem:\n${session.intelligentIndex.map(i => `[${i.timeframe}] ${i.topic}`).join('\n')}\n`;
+      }
+    } else if (session.modeId === 'medical_doctor') {
+      if (session.summary) summaryContent += `Resumo Clínico (S/O):\n${session.summary}\n\n`;
+      if (session.tasks && session.tasks.length > 0) {
+        summaryContent += `Plano (Condutas e Prescrições):\n${session.tasks.map(t => `- ${t}`).join('\n')}\n\n`;
+      }
+      if (session.decisions && session.decisions.length > 0) {
+        summaryContent += `Avaliação (Diagnósticos):\n${session.decisions.map(d => `- ${d}`).join('\n')}\n\n`;
+      }
+      if (session.intelligentIndex && session.intelligentIndex.length > 0) {
+        summaryContent += `Tópicos da Anamnese/Exame:\n${session.intelligentIndex.map(i => `[${i.timeframe}] ${i.topic}`).join('\n')}\n`;
+      }
+    } else if (session.modeId === 'medical_patient') {
+      if (session.summary) summaryContent += `Resumo da Consulta:\n${session.summary}\n\n`;
+      if (session.tasks && session.tasks.length > 0) {
+        summaryContent += `Próximos Passos:\n${session.tasks.map(t => `- ${t}`).join('\n')}\n\n`;
+      }
+      if (session.decisions && session.decisions.length > 0) {
+        summaryContent += `Conclusões / Diagnósticos:\n${session.decisions.map(d => `- ${d}`).join('\n')}\n\n`;
+      }
+      if (session.intelligentIndex && session.intelligentIndex.length > 0) {
+        summaryContent += `Orientações e Dúvidas:\n${session.intelligentIndex.map(i => `[${i.timeframe}] ${i.topic}`).join('\n')}\n`;
+      }
+    } else {
+      if (session.summary) summaryContent += `Resumo:\n${session.summary}\n\n`;
+      if (session.tasks && session.tasks.length > 0) {
+        summaryContent += `Tarefas:\n${session.tasks.map(t => `- ${t}`).join('\n')}\n\n`;
+      }
+      if (session.decisions && session.decisions.length > 0) {
+        summaryContent += `Decisões:\n${session.decisions.map(d => `- ${d}`).join('\n')}\n\n`;
+      }
+      if (session.intelligentIndex && session.intelligentIndex.length > 0) {
+        summaryContent += `Índice Inteligente:\n${session.intelligentIndex.map(i => `[${i.timeframe}] ${i.topic}`).join('\n')}\n`;
+      }
+    }
+
+    let fileNameSuffix = 'resumo';
+    if (session.modeId === 'cinema') fileNameSuffix = 'relatorio_edicao';
+    if (session.modeId === 'medical_doctor') fileNameSuffix = 'prontuario';
+    if (session.modeId === 'medical_patient') fileNameSuffix = 'resumo_paciente';
+
+    zip.file(`${baseFilename}_${fileNameSuffix}.txt`, summaryContent);
+  }
+
+  // 4. Markers CSV (Generic)
+  if (selectedFiles.markersCsv && session.markers && session.markers.length > 0) {
+    const header = 'Tempo,Tipo,Label,Dados\n';
+    const rows = session.markers.map(m => {
+      const time = formatTimecode(m.time);
+      return `${time},"${m.type}","${m.label}","${m.data || ''}"`;
+    }).join('\n');
+    zip.file(`${baseFilename}_marcadores.csv`, header + rows);
+  }
+
+  // 5. Premiere XML
+  if (selectedFiles.premiereXml && session.markers && session.markers.length > 0) {
+    const xmlContent = generatePremiereXMLString(session.markers, session.cinemaMetadata);
+    zip.file(`${baseFilename}_premiere.xml`, xmlContent);
+  }
+
+  // 6. DaVinci CSV
+  if (selectedFiles.davinciCsv && session.markers && session.markers.length > 0) {
+    const csvContent = generateDaVinciCSVString(session.markers, session.cinemaMetadata);
+    zip.file(`${baseFilename}_davinci.csv`, csvContent);
+  }
+
+  // Generate ZIP and trigger download
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  saveAs(zipBlob, `${baseFilename}.zip`);
+}
+
 // Helper functions to return strings instead of triggering downloads
 function generatePremiereXMLString(markers: Marker[], cinemaMetadata?: CinemaMetadata): string {
   // Find Ação and Corta markers to define the useful clip duration

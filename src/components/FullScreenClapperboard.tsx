@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { CinemaMetadata } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Maximize } from 'lucide-react';
@@ -69,8 +70,8 @@ export function FullScreenClapperboard({ metadata, onClose }: FullScreenClapperb
     }, 100); // 100ms flash
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black text-white flex flex-col items-center justify-center overflow-hidden font-mono">
+  const content = (
+    <div className="fixed inset-0 z-[9999] bg-black text-white flex flex-col items-center justify-center overflow-hidden font-mono">
       {/* Flash Overlay */}
       <AnimatePresence>
         {isFlashing && (
@@ -94,55 +95,64 @@ export function FullScreenClapperboard({ metadata, onClose }: FullScreenClapperb
 
       {/* Clapperboard Content */}
       <div 
-        className="w-full h-full flex flex-col p-8 cursor-pointer select-none"
+        className="w-full h-full flex flex-col p-2 sm:p-8 cursor-pointer select-none"
         onClick={handleClap}
       >
         {/* Top Section: Movie Name */}
-        <div className="flex-1 flex items-center justify-center border-b-8 border-white/20">
-          <h1 className="text-[8vw] font-bold tracking-tighter uppercase text-center leading-none">
+        <div className="flex-[0.5] flex items-center justify-center border-b-4 sm:border-b-8 border-white/20 p-2">
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold tracking-tighter uppercase text-center leading-none line-clamp-1">
             {metadata.movieName || 'PROJETO SEM NOME'}
           </h1>
         </div>
 
         {/* Middle Section: Scene, Shot, Take */}
-        <div className="flex-[2] flex flex-row border-b-8 border-white/20">
-          <div className="flex-1 border-r-8 border-white/20 flex flex-col items-center justify-center p-4">
-            <span className="text-[3vw] text-zinc-400 uppercase tracking-widest mb-2">Cena</span>
-            <span className="text-[12vw] font-bold leading-none">{metadata.scene || '-'}</span>
+        <div className="flex-[2] grid grid-cols-3 border-b-4 sm:border-b-8 border-white/20">
+          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
+            <span className="text-[10px] sm:text-sm md:text-xl text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2">Cena</span>
+            <span className="text-4xl sm:text-7xl md:text-9xl font-bold leading-none text-center break-all">{metadata.scene || '-'}</span>
           </div>
-          <div className="flex-1 border-r-8 border-white/20 flex flex-col items-center justify-center p-4">
-            <span className="text-[3vw] text-zinc-400 uppercase tracking-widest mb-2">Plano</span>
-            <span className="text-[12vw] font-bold leading-none">{metadata.shot || '-'}</span>
+          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
+            <span className="text-[10px] sm:text-sm md:text-xl text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2">Plano</span>
+            <span className="text-4xl sm:text-7xl md:text-9xl font-bold leading-none text-center break-all">{metadata.shot || '-'}</span>
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <span className="text-[3vw] text-zinc-400 uppercase tracking-widest mb-2">Take</span>
-            <span className="text-[12vw] font-bold leading-none text-emerald-400">{metadata.take || '01'}</span>
+          <div className="flex flex-col items-center justify-center p-2">
+            <span className="text-[10px] sm:text-sm md:text-xl text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2">Take</span>
+            <span className="text-5xl sm:text-8xl md:text-[10rem] font-bold leading-none text-emerald-400 text-center">{metadata.take || '01'}</span>
           </div>
         </div>
 
         {/* Bottom Section: Camera, Lens, Date */}
-        <div className="flex-1 flex flex-row">
-          <div className="flex-1 border-r-8 border-white/20 flex flex-col items-center justify-center p-4">
-            <span className="text-[2vw] text-zinc-400 uppercase tracking-widest mb-1">Câmera</span>
-            <span className="text-[6vw] font-bold leading-none">{metadata.camera || '-'}</span>
+        <div className="flex-1 grid grid-cols-3 border-b-4 sm:border-b-8 border-white/20">
+          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
+            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Câmera</span>
+            <span className="text-xl sm:text-4xl md:text-6xl font-bold leading-none text-center">{metadata.camera || '-'}</span>
           </div>
-          <div className="flex-1 border-r-8 border-white/20 flex flex-col items-center justify-center p-4">
-            <span className="text-[2vw] text-zinc-400 uppercase tracking-widest mb-1">Lente</span>
-            <span className="text-[6vw] font-bold leading-none">{metadata.lens || '-'}</span>
+          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
+            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Lente</span>
+            <span className="text-xl sm:text-4xl md:text-6xl font-bold leading-none text-center">{metadata.lens || '-'}</span>
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <span className="text-[2vw] text-zinc-400 uppercase tracking-widest mb-1">Data</span>
-            <span className="text-[4vw] font-bold leading-none">
-              {new Date().toLocaleDateString('pt-BR')}
+          <div className="flex flex-col items-center justify-center p-2">
+            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Data</span>
+            <span className="text-lg sm:text-3xl md:text-5xl font-bold leading-none text-center">
+              {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
             </span>
           </div>
         </div>
 
-        {/* Instructions */}
-        <div className="absolute bottom-6 left-0 right-0 text-center text-zinc-500 text-xl uppercase tracking-widest pointer-events-none">
-          Toque na tela para Bater a Claquete (Flash + Beep)
+        {/* Crew Section: Director, DOP */}
+        <div className="flex-1 grid grid-cols-2">
+          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
+            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Diretor(a)</span>
+            <span className="text-sm sm:text-2xl md:text-4xl font-bold leading-none text-center line-clamp-2">{metadata.director || '-'}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center p-2">
+            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Dir. Fotografia</span>
+            <span className="text-sm sm:text-2xl md:text-4xl font-bold leading-none text-center line-clamp-2">{metadata.dop || '-'}</span>
+          </div>
         </div>
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 }

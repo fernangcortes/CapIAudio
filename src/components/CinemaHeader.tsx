@@ -161,9 +161,6 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
             <Radio size={14} className={isLtcPlaying ? 'animate-pulse' : ''} />
             {isLtcPlaying ? 'LTC Ativo' : 'Emitir LTC'}
           </button>
-          <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-1 rounded-md">
-            Organização em Pastas Ativada
-          </span>
         </div>
       </div>
 
@@ -366,6 +363,32 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
               className="w-2/3 bg-zinc-800/50 border border-zinc-700 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-center font-mono text-lg"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Equipe */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-zinc-800/50">
+        <div>
+          <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1.5">Diretor(a)</label>
+          <input
+            type="text"
+            value={metadata.director || ''}
+            onChange={(e) => handleChange('director', e.target.value)}
+            disabled={isRecording}
+            placeholder="Nome do Diretor"
+            className="w-full bg-zinc-800/50 border border-zinc-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1.5">Diretor(a) de Fotografia</label>
+          <input
+            type="text"
+            value={metadata.dop || ''}
+            onChange={(e) => handleChange('dop', e.target.value)}
+            disabled={isRecording}
+            placeholder="Nome do Dir. Fotografia"
+            className="w-full bg-zinc-800/50 border border-zinc-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          />
         </div>
       </div>
 
