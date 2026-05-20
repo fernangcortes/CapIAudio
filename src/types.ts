@@ -19,7 +19,20 @@ export interface CustomButton {
   tooltip?: string; // Explanatory tooltip
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export type AppMode = string;
+
+export interface FormField {
+  key: string;
+  label: string;
+  placeholder: string;
+  type: 'text' | 'textarea';
+}
 
 export interface ModeConfig {
   id: AppMode;
@@ -28,6 +41,9 @@ export interface ModeConfig {
   description: string;
   defaultButtons: CustomButton[];
   custom?: boolean;
+  formFields?: FormField[];
+  category?: string;
+  checklist?: string[];
 }
 
 export interface CinemaShot {
@@ -79,4 +95,5 @@ export interface RecordingSession {
   images?: any[];
   cinemaMetadata?: CinemaMetadata;
   setupData?: Record<string, any>;
+  checklist?: ChecklistItem[];
 }

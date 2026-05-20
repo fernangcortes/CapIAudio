@@ -1,0 +1,104 @@
+{
+  "entities": {
+    "Marker": {
+      "title": "Marker",
+      "description": "A customized marker placed at a specific timestamp",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "time": { "type": "number" },
+        "type": { "type": "string" },
+        "label": { "type": "string" },
+        "icon": { "type": "string" },
+        "data": { "type": "string" }
+      },
+      "required": ["id", "time", "type", "label", "icon"]
+    },
+    "CinemaMetadata": {
+      "title": "CinemaMetadata",
+      "description": "Metadata specifically related to cinema mode recordings",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string" },
+        "sceneId": { "type": "string" },
+        "shotId": { "type": "string" },
+        "movieName": { "type": "string" },
+        "scene": { "type": "string" },
+        "shot": { "type": "string" },
+        "take": { "type": "string" },
+        "camera": { "type": "string" },
+        "rollCard": { "type": "string" },
+        "lens": { "type": "string" },
+        "goodTake": { "type": "boolean" },
+        "director": { "type": "string" },
+        "dop": { "type": "string" }
+      }
+    },
+    "RecordingSession": {
+      "title": "RecordingSession",
+      "description": "Metadata, transcripts, summaries and marks of an audio recording session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "modeId": { "type": "string" },
+        "markers": { "type": "array" },
+        "duration": { "type": "number" },
+        "transcription": { "type": "string" },
+        "summary": { "type": "string" },
+        "tasks": { "type": "array" },
+        "decisions": { "type": "array" },
+        "intelligentIndex": { "type": "array" },
+        "cinemaMetadata": { "$ref": "#/entities/CinemaMetadata" },
+        "setupData": { "type": "object" },
+        "userId": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "date", "modeId", "markers", "duration", "userId"]
+    },
+    "CustomMode": {
+      "title": "CustomMode",
+      "description": "A user-defined logging template with customizable buttons",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "description": { "type": "string" },
+        "defaultButtons": { "type": "array" },
+        "custom": { "type": "boolean" },
+        "userId": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "icon", "description", "defaultButtons", "userId"]
+    },
+    "CinemaProject": {
+      "title": "CinemaProject",
+      "description": "A cinema project to hold scenes and shots",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "scenes": { "type": "array" },
+        "userId": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "userId"]
+    }
+  },
+  "firestore": {
+    "/sessions/{sessionId}": {
+      "schema": "RecordingSession",
+      "description": "Metadata and markers of recorded sessions owned by the user"
+    },
+    "/custom_modes/{modeId}": {
+      "schema": "CustomMode",
+      "description": "Custom workflows or application modes created by the user"
+    },
+    "/cinema_projects/{projectId}": {
+      "schema": "CinemaProject",
+      "description": "Cinema scene templates and details"
+    }
+  }
+}

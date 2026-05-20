@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Book, Mic, Settings2, Users, Clapperboard, ArrowLeft, CheckCircle2, Server, Brain, Smartphone, Database, Zap, FileAudio, FileText, Network } from 'lucide-react';
 
-export function Documentation({ onBack }: { onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<'tools' | 'cinema' | 'architecture' | 'tech'>('tools');
+export function Documentation({ onBack, onSelectMode }: { onBack: () => void; onSelectMode?: (modeId: string) => void }) {
+  const [activeTab, setActiveTab] = useState<'tools' | 'cinema' | 'architecture' | 'tech' | 'catalog'>('tools');
 
   return (
     <div className="max-w-5xl mx-auto pb-20">
@@ -22,7 +22,7 @@ export function Documentation({ onBack }: { onBack: () => void }) {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-white">Manual do CapIAudio</h1>
-            <p className="text-zinc-400 mt-1">Guia técnico e prático para profissionais do audiovisual</p>
+            <p className="text-zinc-400 mt-1">Guia técnico e prático para profissionais de mídia e facilitadores</p>
           </div>
         </div>
 
@@ -30,6 +30,7 @@ export function Documentation({ onBack }: { onBack: () => void }) {
         <div className="flex flex-wrap gap-2 mb-8 border-b border-white/10 pb-4">
           <TabButton active={activeTab === 'tools'} onClick={() => setActiveTab('tools')} icon={<Settings2 size={18} />} label="Ferramentas" />
           <TabButton active={activeTab === 'cinema'} onClick={() => setActiveTab('cinema')} icon={<Clapperboard size={18} />} label="Modo Cinema" />
+          <TabButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} icon={<Book size={18} />} label="Catálogo (20 Módulos)" />
           <TabButton active={activeTab === 'architecture'} onClick={() => setActiveTab('architecture')} icon={<Network size={18} />} label="Arquitetura" />
           <TabButton active={activeTab === 'tech'} onClick={() => setActiveTab('tech')} icon={<Zap size={18} />} label="Tecnologias" />
         </div>
@@ -51,7 +52,7 @@ export function Documentation({ onBack }: { onBack: () => void }) {
                 <FeatureCard 
                   icon={<Zap className="text-yellow-400" />}
                   title="Marcação em Tempo Real (Tags)"
-                  description="Botões coloridos que você aperta durante a gravação. Eles salvam o tempo exato (ex: 01:23) com uma etiqueta (ex: 'Boa Resposta', 'Erro')."
+                  description="Botões coloridos que você aperta durante a gravação. Eles salvam o tempo exato (ex: 01:23) com uma etiqueta (ex: 'Boa Resposta', 'Erro'). Now supports Undo/Redo e live deletions."
                 />
                 <FeatureCard 
                   icon={<FileText className="text-cyan-400" />}
@@ -79,7 +80,7 @@ export function Documentation({ onBack }: { onBack: () => void }) {
                   <div className="flex-1">
                     <h3 className="text-xl font-medium text-emerald-400 mb-4">A Claquete Digital</h3>
                     <p className="text-zinc-300 text-sm leading-relaxed mb-4">
-                      Antes de cada gravação, você preenche os metadados: <strong>Cena</strong>, <strong>Plano</strong> e <strong>Take</strong>. Esses dados ficam atrelados ao arquivo de áudio e aos marcadores.
+                      Antes de cada gravação, você preenche os metadados: <strong>Cena</strong>, <strong>Plano</strong> e <strong>Take</strong>. Metadados dinâmicos e customizáveis via Editor de Formulário.
                     </p>
                     <ul className="space-y-3 text-sm text-zinc-400">
                       <li className="flex items-center gap-2"><CheckCircle2 size={16} className="text-emerald-500" /> Sincronização em tempo real com o Diretor.</li>
@@ -112,9 +113,64 @@ export function Documentation({ onBack }: { onBack: () => void }) {
             </motion.div>
           )}
 
+          {activeTab === 'catalog' && (
+            <motion.div key="catalog" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
+              <div>
+                <h2 className="text-2xl font-semibold text-white mb-2">Sugestão de 26 Módulos de Fluxo de Trabalho</h2>
+                <p className="text-zinc-400 text-sm">Dispostos em categorias funcionais para otimizar suas captações e análises de mídia. Clique para ativar qualquer módulo.</p>
+              </div>
+
+              <div className="space-y-6">
+                <CategoryGroup title="🎬 Produção de Cinema">
+                  <CatalogItem emoji="🎬" name="Set de Filmagem" desc="Específico para gravação de cinema com claquete digital e assistente de continuidade de set." modeId="cinema" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="📖" name="Leitura de Roteiro (Table Read)" desc="Anote feedbacks de ritmo, mudanças em falas e atuações de elenco em tempo de leitura." modeId="table_read" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="👥" name="Reunião de Direção & Chefes" desc="Gestão visual e alinhamento tático entre Direção, Fotografia (DP), Arte e Figurinos." modeId="dept_heads" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="📹" name="Decupagem & Plano de Produção" desc="Análise descritiva de cada plano planejado para as lentes, câmera e pátio." modeId="decupagem" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="📍" name="Visitas Técnicas (Scouting)" desc="Mapeamento de fiação, caminho de luz solar e poluição sonora em locações." modeId="scouting" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="✂️" name="Briefing de Montagem" desc="Marcas rítmicas de transições de cena e preferências de take para os editores." modeId="briefing_montagem" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="🗣️" name="Filme Comentado" desc="Gravação dinâmica para faixas de comentários do diretor, segredos de set e extras." modeId="filme_comentado" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                </CategoryGroup>
+
+                <CategoryGroup title="🎥 Audiovisual & Comunicação">
+                  <CatalogItem emoji="🎤" name="Jornalismo de Campo" desc="Para reportagens de rua, coletando B-Roll e marcando sonoras de forma a acelerar a edição de vídeo." modeId="journalism" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="📻" name="Podcast & Lives" desc="Focado em anfitriões e editores, marcando tópicos principais, risos, inserções e excelentes piadas." modeId="podcast" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="📱" name="Criação de Conteúdo (Vlog)" desc="Planejamento de vídeos rápidos para TikTok, Reels ou YouTube, anotando hooks de impacto e transições." modeId="vlog" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                </CategoryGroup>
+
+                <CategoryGroup title="👔 Negócios & Trabalho Remoto">
+                  <CatalogItem emoji="🤝" name="Reunião de Diretoria" desc="Marcações de ata automática com tarefas (Action Items), responsabilidades e decisões de diretoria." modeId="meeting" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="💡" name="Brainstorming & Ideação" desc="Foco na geração de ideias fora da caixa, MVP, descarte rápido e formulação de próximos passos de validação." modeId="brainstorm" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="👥" name="Candidato & Recrutamento" desc="Registra entrevistas de emprego, destacando perguntas técnicas, pontos fortes e preocupações identificadas." modeId="recruitment" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="📊" name="Apresentações (Sales Pitch)" desc="Acompanha objeções de clientes, destaques do valor da solução e prazos de contrato propostos." modeId="pitch" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                </CategoryGroup>
+
+                <CategoryGroup title="🛠️ Operações, Suporte & Vistoria">
+                  <CatalogItem emoji="📞" name="Suporte (Sucesso do Cliente)" desc="Captura de relatos de bugs, opiniões sobre UI/UX e citações diretas sobre frustrações do usuário." modeId="support" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="📝" name="Workshops & Treinamentos" desc="Dinâmicas presenciais ou virtuais, registrando dúvidas, feedbacks do grupo e exercícios de cooperação." modeId="workshop" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="📈" name="Diário de Obra (Engenharia)" desc="Dite relatórios breves de canteiro de obras, catalogando falhas de projeto, avanço físico e uso de insumos." modeId="construction" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="🚗" name="Vistoria & Inspeção Técnica" desc="Listas de verificação por voz em inspeções veiculares, prediais ou avaliações de segurança." modeId="inspection" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                </CategoryGroup>
+
+                <CategoryGroup title="🧠 Educação, Ciência & Saúde">
+                  <CatalogItem emoji="🩺" name="Prontuário Médico (Médico)" desc="Otimização do prontuário eletrônico: sintomas descritos, hipótese diagnóstica e exames solicitados." modeId="medical_doctor" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="👨‍🏫" name="Palestras & Aulas" desc="Cai na prova, referências bibliográficas sugeridas, datas de entrega e dúvidas sobre os slides." modeId="lecture" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="🔬" name="Pesquisa Laboratorial" desc="Registros de ensaios, hipóteses descartadas, divergência de resultados e dados de alta importância." modeId="research" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="✍️" name="Criação Literária" desc="Worldbuilding, criação de personagens, plot twists, furos de roteiro e diálogos memoráveis." modeId="writing" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                </CategoryGroup>
+
+                <CategoryGroup title="🏡 Vida Pessoal & Lazer">
+                  <CatalogItem emoji="🍻" name="Conversa de Bar" desc="Brinde, gozações, fofocas e aquela filosofia profunda que surge após uma bela cerveja gelada." modeId="bar_conversa" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="🎉" name="Planejamento de Festa" desc="Decorações, cardápios, listas de convidados, orçamentos, vaquinhas e atribuições de quem leva o que." modeId="party_planning" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="✈️" name="Diário de Bordo (Viagens)" desc="Locais explorados, pratos exóticos, gastos em viagem e impressões imediatas de novos destinos." modeId="travel_diary" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                  <CatalogItem emoji="👵" name="Histórias de Família" desc="Entrevistas de história viva, árvore genealógica falada e lembranças de parentesco." modeId="family_history" onSelect={(id) => { onSelectMode?.(id); onBack(); }} />
+                </CategoryGroup>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'architecture' && (
             <motion.div key="architecture" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <h2 className="text-2xl font-semibold text-white mb-6">Arquitetura do Sistema</h2>
+              <h2 className="text-2xl font-semibold text-white mb-6">Arquitetura do System</h2>
               <p className="text-zinc-300 mb-8 leading-relaxed">
                 Entenda como os dados fluem no CapIAudio, desde a captação no seu dispositivo até o processamento na nuvem.
               </p>
@@ -241,6 +297,57 @@ function TechItem({ title, desc }: { title: string, desc: string }) {
       <div>
         <h4 className="text-white font-medium">{title}</h4>
         <p className="text-sm text-zinc-400 mt-1">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+interface CategoryGroupProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+function CategoryGroup({ title, children }: CategoryGroupProps) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold text-zinc-400 tracking-wider uppercase pl-1">{title}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+interface CatalogItemProps {
+  emoji: string;
+  name: string;
+  desc: string;
+  modeId?: string;
+  onSelect?: (modeId: string) => void;
+}
+
+function CatalogItem({ emoji, name, desc, modeId, onSelect }: CatalogItemProps) {
+  const isClickable = !!(modeId && onSelect);
+  return (
+    <div 
+      onClick={() => isClickable && modeId && onSelect(modeId)}
+      className={`bg-black/35 border border-white/5 rounded-xl p-4 flex gap-3 transition-all ${
+        isClickable
+          ? 'cursor-pointer hover:border-emerald-500/40 hover:bg-emerald-500/5 group'
+          : 'hover:border-emerald-500/30'
+      }`}
+    >
+      <span className="text-2xl shrink-0 self-start group-hover:scale-105 transition-transform">{emoji}</span>
+      <div className="space-y-1 pr-1 relative w-full">
+        <h4 className="text-white font-medium text-sm group-hover:text-emerald-400 transition-colors flex items-center gap-2">
+          {name}
+          {isClickable && (
+            <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+              Ativar
+            </span>
+          )}
+        </h4>
+        <p className="text-zinc-400 text-xs leading-relaxed">{desc}</p>
       </div>
     </div>
   );

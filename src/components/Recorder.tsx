@@ -17,9 +17,10 @@ interface RecorderProps {
   setupData: Record<string, any>;
   setSetupData: (data: Record<string, any>) => void;
   onAutoClaquete?: () => Promise<void>;
+  formFields?: any[];
 }
 
-export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, onPause, modeName, modeId, mediaStream, setupData, setSetupData, onAutoClaquete }: RecorderProps) {
+export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, onPause, modeName, modeId, mediaStream, setupData, setSetupData, onAutoClaquete, formFields }: RecorderProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const formatTime = (seconds: number) => {
@@ -110,6 +111,7 @@ export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, 
           modeId={modeId || 'default'} 
           setupData={setupData} 
           onChange={setSetupData} 
+          formFields={formFields}
         />
       </div>
 

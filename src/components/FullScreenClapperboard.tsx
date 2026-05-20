@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CinemaMetadata } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Maximize } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface FullScreenClapperboardProps {
   metadata: CinemaMetadata;
@@ -11,13 +11,12 @@ interface FullScreenClapperboardProps {
 
 export function FullScreenClapperboard({ metadata, onClose }: FullScreenClapperboardProps) {
   const [isFlashing, setIsFlashing] = useState(false);
+  const [isClapping, setIsClapping] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    // Initialize AudioContext on mount (might need user interaction to actually play, but we'll do it on click)
     audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    // Request full screen when opened
     const elem = document.documentElement;
     if (elem.requestFullscreen) {
       elem.requestFullscreen().catch((err) => {
@@ -26,7 +25,6 @@ export function FullScreenClapperboard({ metadata, onClose }: FullScreenClapperb
     }
 
     return () => {
-      // Exit full screen when closed
       if (document.fullscreenElement) {
         document.exitFullscreen().catch((err) => {
           console.warn(`Error attempting to exit full-screen mode: ${err.message} (${err.name})`);
@@ -41,7 +39,6 @@ export function FullScreenClapperboard({ metadata, onClose }: FullScreenClapperb
   const playBeep = () => {
     if (!audioContextRef.current) return;
     
-    // Resume context if suspended (browser policy)
     if (audioContextRef.current.state === 'suspended') {
       audioContextRef.current.resume();
     }
@@ -50,28 +47,38 @@ export function FullScreenClapperboard({ metadata, onClose }: FullScreenClapperb
     const gainNode = audioContextRef.current.createGain();
 
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(1000, audioContextRef.current.currentTime); // 1kHz beep
+    oscillator.frequency.setValueAtTime(1000, audioContextRef.current.currentTime);
     
     gainNode.gain.setValueAtTime(1, audioContextRef.current.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + 0.1); // Short beep
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContextRef.current.currentTime + 0.15);
 
     oscillator.connect(gainNode);
     gainNode.connect(audioContextRef.current.destination);
 
     oscillator.start();
-    oscillator.stop(audioContextRef.current.currentTime + 0.1);
+    oscillator.stop(audioContextRef.current.currentTime + 0.15);
   };
 
   const handleClap = () => {
+    if (isClapping) return;
+    setIsClapping(true);
     playBeep();
-    setIsFlashing(true);
+    
+    setTimeout(() => {
+      setIsFlashing(true);
+    }, 60);
+
     setTimeout(() => {
       setIsFlashing(false);
-    }, 100); // 100ms flash
+    }, 180);
+
+    setTimeout(() => {
+      setIsClapping(false);
+    }, 450);
   };
 
   const content = (
-    <div className="fixed inset-0 z-[9999] bg-black text-white flex flex-col items-center justify-center overflow-hidden font-mono">
+    <div className="fixed inset-0 z-[9999] bg-[#0c0d12] text-white flex flex-col items-center justify-center p-4 md:p-8 overflow-hidden font-mono select-none">
       {/* Flash Overlay */}
       <AnimatePresence>
         {isFlashing && (
@@ -88,67 +95,144 @@ export function FullScreenClapperboard({ metadata, onClose }: FullScreenClapperb
       {/* Close Button */}
       <button 
         onClick={onClose}
-        className="absolute top-6 right-6 p-4 bg-zinc-900/50 hover:bg-zinc-800 rounded-full transition-colors z-40"
+        className="absolute top-4 right-4 md:top-6 md:right-6 p-3 md:p-4 bg-zinc-900/85 hover:bg-zinc-800 rounded-full transition-all border border-zinc-800 z-50 text-zinc-400 hover:text-white"
+        id="btn-close-clapperboard"
       >
-        <X size={32} />
+        <X size={28} />
       </button>
 
-      {/* Clapperboard Content */}
+      {/* Clapperboard Container Frame */}
       <div 
-        className="w-full h-full flex flex-col p-2 sm:p-8 cursor-pointer select-none"
         onClick={handleClap}
+        className="w-full max-w-4xl h-full max-h-[85vh] flex flex-col items-center justify-center cursor-pointer p-2 rounded-2xl md:p-4 bg-[#14151f]/40 relative"
       >
-        {/* Top Section: Movie Name */}
-        <div className="flex-[0.5] flex items-center justify-center border-b-4 sm:border-b-8 border-white/20 p-2">
-          <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold tracking-tighter uppercase text-center leading-none line-clamp-1">
-            {metadata.movieName || 'PROJETO SEM NOME'}
-          </h1>
+        {/* CLAPPER STICKS (ARM & BODY BAR) */}
+        <div className="w-full max-w-3xl flex flex-col relative" style={{ marginBottom: '-2px' }}>
+          
+          {/* Animated Movable ARM */}
+          <motion.div 
+            className="w-full origin-bottom-left z-20 relative"
+            animate={{ rotate: isClapping ? 0 : -25 }}
+            transition={{
+              type: "spring",
+              stiffness: isClapping ? 500 : 120,
+              damping: isClapping ? 12 : 15
+            }}
+          >
+            {/* The Arm stick */}
+            <div className="w-[102%] -ml-[1%] h-12 md:h-16 bg-[#16171d] relative rounded-t-xl overflow-hidden shadow-2xl border-t border-l border-r border-[#3a3d52]/30 flex flex-col justify-end">
+              <svg className="w-full h-full" viewBox="0 0 800 60" preserveAspectRatio="none">
+                <defs>
+                  <pattern id="stick-stripes-top" width="100" height="60" patternUnits="userSpaceOnUse">
+                    <path d="M 0,60 L 40,0 L 70,0 L 30,60 Z" fill="#ffffff" />
+                    <rect width="100" height="60" fill="none" />
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="#121216" />
+                <rect width="100%" height="100%" fill="url(#stick-stripes-top)" opacity="0.9" />
+              </svg>
+            </div>
+          </motion.div>
+
+          {/* Stationary LOWER BAR */}
+          <div className="w-full h-12 md:h-16 bg-[#121318] z-10 relative overflow-hidden border-b-2 border-zinc-900 flex flex-col justify-end shadow-md">
+            <svg className="w-full h-full" viewBox="0 0 800 60" preserveAspectRatio="none">
+              <defs>
+                <pattern id="stick-stripes-bottom" width="100" height="60" patternUnits="userSpaceOnUse">
+                  <path d="M 30,60 L 70,0 L 40,0 L 0,60 Z" fill="#ffffff" />
+                  <rect width="100" height="60" fill="none" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="#121216" />
+              <rect width="100%" height="100%" fill="url(#stick-stripes-bottom)" opacity="0.9" />
+            </svg>
+            
+            {/* Real Hinge Circle on Left */}
+            <div className="absolute left-2 top-[35%] w-5 h-5 md:w-6 md:h-6 rounded-full bg-zinc-800 border-2 border-zinc-600 shadow-inner z-30" />
+            
+            {/* Interactivity Indicator */}
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] text-[#5d627c] tracking-widest font-sans uppercase animate-pulse">
+              TOQUE PARA BATER CLAQUETE / TAP TO CLAP
+            </div>
+          </div>
         </div>
 
-        {/* Middle Section: Scene, Shot, Take */}
-        <div className="flex-[2] grid grid-cols-3 border-b-4 sm:border-b-8 border-white/20">
-          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
-            <span className="text-[10px] sm:text-sm md:text-xl text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2">Cena</span>
-            <span className="text-4xl sm:text-7xl md:text-9xl font-bold leading-none text-center break-all">{metadata.scene || '-'}</span>
+        {/* SLATE BOARD CORE */}
+        <div className="w-full max-w-3xl bg-[#0e0f14] border-4 md:border-[6px] border-[#181924] rounded-b-2xl md:rounded-b-3xl p-4 md:p-6 shadow-2xl flex flex-col justify-between select-none relative [box-shadow:inset_0_4px_30px_rgba(0,0,0,0.8)]">
+          
+          {/* Top Section: Production / Movie Title */}
+          <div className="border-b-2 border-zinc-800/80 pb-3 mb-4 flex flex-col">
+            <span className="text-[10px] md:text-sm text-[#5d627c] uppercase tracking-widest mb-1">PROD. / FILME</span>
+            <h1 className="text-xl sm:text-2xl md:text-4xl font-bold tracking-tight uppercase text-emerald-400 font-sans line-clamp-1 leading-none">
+              {metadata.movieName || 'PROJETO SEM NOME'}
+            </h1>
           </div>
-          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
-            <span className="text-[10px] sm:text-sm md:text-xl text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2">Plano</span>
-            <span className="text-4xl sm:text-7xl md:text-9xl font-bold leading-none text-center break-all">{metadata.shot || '-'}</span>
-          </div>
-          <div className="flex flex-col items-center justify-center p-2">
-            <span className="text-[10px] sm:text-sm md:text-xl text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2">Take</span>
-            <span className="text-5xl sm:text-8xl md:text-[10rem] font-bold leading-none text-emerald-400 text-center">{metadata.take || '01'}</span>
-          </div>
-        </div>
 
-        {/* Bottom Section: Camera, Lens, Date */}
-        <div className="flex-1 grid grid-cols-3 border-b-4 sm:border-b-8 border-white/20">
-          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
-            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Câmera</span>
-            <span className="text-xl sm:text-4xl md:text-6xl font-bold leading-none text-center">{metadata.camera || '-'}</span>
+          {/* Major Compartments Grid: Scene, Shot, Take */}
+          <div className="grid grid-cols-3 border-b-2 border-zinc-800/80 pb-4 mb-4 gap-4">
+            <div className="border-r border-zinc-800/80 pr-2 flex flex-col justify-center">
+              <span className="text-[10px] md:text-xs text-[#5d627c] uppercase tracking-wider mb-2">SCENE / CENA</span>
+              <span className="text-3xl sm:text-5xl md:text-7xl font-bold font-sans tracking-tighter text-center truncate py-1 text-slate-100">
+                {metadata.scene || '-'}
+              </span>
+            </div>
+            
+            <div className="border-r border-zinc-800/80 px-2 flex flex-col justify-center">
+              <span className="text-[10px] md:text-xs text-[#5d627c] uppercase tracking-wider mb-2">SHOT / PLANO</span>
+              <span className="text-3xl sm:text-5xl md:text-7xl font-bold font-sans tracking-tighter text-center truncate py-1 text-slate-100">
+                {metadata.shot || '-'}
+              </span>
+            </div>
+            
+            <div className="pl-2 flex flex-col justify-center">
+              <span className="text-[10px] md:text-xs text-[#5d627c] uppercase tracking-wider mb-2">TAKE / TAKE</span>
+              <span className="text-4xl sm:text-6xl md:text-8xl font-black font-sans tracking-tighter text-center py-1 text-amber-400">
+                {metadata.take || '01'}
+              </span>
+            </div>
           </div>
-          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
-            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Lente</span>
-            <span className="text-xl sm:text-4xl md:text-6xl font-bold leading-none text-center">{metadata.lens || '-'}</span>
-          </div>
-          <div className="flex flex-col items-center justify-center p-2">
-            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Data</span>
-            <span className="text-lg sm:text-3xl md:text-5xl font-bold leading-none text-center">
-              {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-            </span>
-          </div>
-        </div>
 
-        {/* Crew Section: Director, DOP */}
-        <div className="flex-1 grid grid-cols-2">
-          <div className="border-r-4 sm:border-r-8 border-white/20 flex flex-col items-center justify-center p-2">
-            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Diretor(a)</span>
-            <span className="text-sm sm:text-2xl md:text-4xl font-bold leading-none text-center line-clamp-2">{metadata.director || '-'}</span>
+          {/* Technical Specs: Camera, Lens, Date */}
+          <div className="grid grid-cols-3 border-b-2 border-zinc-800/80 pb-4 mb-4 gap-4">
+            <div className="border-r border-zinc-800/80 pr-2 flex flex-col">
+              <span className="text-[9px] md:text-xs text-[#5d627c] uppercase tracking-wider mb-1">CAMERA / CÂMERA</span>
+              <span className="text-lg sm:text-2xl md:text-4xl font-medium tracking-tight text-slate-200">
+                {metadata.camera || '-'}
+              </span>
+            </div>
+            
+            <div className="border-r border-zinc-800/80 px-2 flex flex-col">
+              <span className="text-[9px] md:text-xs text-[#5d627c] uppercase tracking-wider mb-1">LENS / LENTE</span>
+              <span className="text-lg sm:text-2xl md:text-4xl font-medium tracking-tight text-slate-200">
+                {metadata.lens || '-'}
+              </span>
+            </div>
+            
+            <div className="pl-2 flex flex-col">
+              <span className="text-[9px] md:text-xs text-[#5d627c] uppercase tracking-wider mb-1">DATE / DATA</span>
+              <span className="text-lg sm:text-2xl md:text-4xl font-bold tracking-tight text-sky-400">
+                {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col items-center justify-center p-2">
-            <span className="text-[8px] sm:text-xs md:text-lg text-zinc-400 uppercase tracking-widest mb-1 text-center">Dir. Fotografia</span>
-            <span className="text-sm sm:text-2xl md:text-4xl font-bold leading-none text-center line-clamp-2">{metadata.dop || '-'}</span>
+
+          {/* Bottom Row: Director & Director of Photography */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="border-r border-zinc-800/80 pr-4 flex flex-col justify-center">
+              <span className="text-[9px] md:text-xs text-[#5d627c] uppercase tracking-widest mb-1">DIRECTOR / DIRETOR(A)</span>
+              <span className="text-base sm:text-xl md:text-3xl font-medium tracking-tight text-slate-100 line-clamp-1 py-1">
+                {metadata.director || '-'}
+              </span>
+            </div>
+            
+            <div className="pl-2 flex flex-col justify-center">
+              <span className="text-[9px] md:text-xs text-[#5d627c] uppercase tracking-widest mb-1">DOP / DIR. FOTOGRAFIA</span>
+              <span className="text-base sm:text-xl md:text-3xl font-medium tracking-tight text-slate-100 line-clamp-1 py-1">
+                {metadata.dop || '-'}
+              </span>
+            </div>
           </div>
+
         </div>
       </div>
     </div>

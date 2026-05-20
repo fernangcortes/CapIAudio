@@ -3,6 +3,7 @@ import { Marker, CustomButton, MarkerType } from '../types';
 
 export function useMarkers(initialButtons: CustomButton[]) {
   const [markers, setMarkers] = useState<Marker[]>([]);
+  const [redoStack, setRedoStack] = useState<Marker[]>([]);
   const [customButtons, setCustomButtons] = useState<CustomButton[]>(initialButtons);
   const [speakers, setSpeakers] = useState<{id: string, name: string}[]>([]);
 
@@ -16,7 +17,38 @@ export function useMarkers(initialButtons: CustomButton[]) {
       data
     };
     setMarkers(prev => [...prev, newMarker]);
+    setRedoStack([]); // Clear redo chain on new entry
     return newMarker;
+  }, []);
+
+  const undoMarker = useCallback(() => {
+    let undone: Marker | undefined;
+    setMarkers(prev => {
+      if (prev.length === 0) return prev;
+      const copy = [...prev];
+      undone = copy.pop();
+      return copy;
+    });
+    if (undone) {
+      setRedoStack(prev => [...prev, undone!]);
+    }
+  }, []);
+
+  const redoMarker = useCallback(() => {
+    let redone: Marker | undefined;
+    setRedoStack(prev => {
+      if (prev.length === 0) return prev;
+      const copy = [...prev];
+      redone = copy.pop();
+      return copy;
+    });
+    if (redone) {
+      setMarkers(prev => [...prev, redone!]);
+    }
+  }, []);
+
+  const deleteMarker = useCallback((markerId: string) => {
+    setMarkers(prev => prev.filter(m => m.id !== markerId));
   }, []);
 
   const addCustomButton = useCallback((icon: string, label: string, type: MarkerType = 'custom') => {
@@ -41,8 +73,7 @@ export function useMarkers(initialButtons: CustomButton[]) {
 
   const resetMarkers = useCallback(() => {
     setMarkers([]);
-    // We might want to keep speakers across resets, or clear them. Let's keep them for now, or maybe clear them if it's a new recording.
-    // Actually, let's clear them on reset.
+    setRedoStack([]);
     setSpeakers([]);
   }, []);
 
@@ -52,13 +83,18 @@ export function useMarkers(initialButtons: CustomButton[]) {
 
   const setMarkersState = useCallback((newMarkers: Marker[]) => {
     setMarkers(newMarkers);
+    setRedoStack([]);
   }, []);
 
   return {
     markers,
+    redoStack,
     customButtons,
     speakers,
     addMarker,
+    undoMarker,
+    redoMarker,
+    deleteMarker,
     addCustomButton,
     addSpeaker,
     resetMarkers,

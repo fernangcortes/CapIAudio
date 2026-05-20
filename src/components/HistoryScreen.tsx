@@ -13,9 +13,10 @@ import autoTable from 'jspdf-autotable';
 interface HistoryScreenProps {
   onBack: () => void;
   onResumeSession: (session: RecordingSession) => void;
+  userId?: string;
 }
 
-export function HistoryScreen({ onBack, onResumeSession }: HistoryScreenProps) {
+export function HistoryScreen({ onBack, onResumeSession, userId }: HistoryScreenProps) {
   const [sessions, setSessions] = useState<RecordingSession[]>([]);
   const [projects, setProjects] = useState<CinemaProject[]>([]);
   const [selectedSession, setSelectedSession] = useState<RecordingSession | null>(null);
@@ -28,7 +29,7 @@ export function HistoryScreen({ onBack, onResumeSession }: HistoryScreenProps) {
   useEffect(() => {
     loadSessions();
     loadProjects();
-  }, []);
+  }, [userId]);
 
   const loadSessions = async () => {
     try {

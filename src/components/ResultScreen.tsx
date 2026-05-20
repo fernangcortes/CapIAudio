@@ -9,9 +9,10 @@ interface ResultScreenProps {
   session: RecordingSession;
   onReset: () => void;
   onResume: () => void;
+  language?: 'pt' | 'en';
 }
 
-export function ResultScreen({ session, onReset, onResume }: ResultScreenProps) {
+export function ResultScreen({ session, onReset, onResume, language }: ResultScreenProps) {
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [currentSession, setCurrentSession] = useState<RecordingSession>(session);
@@ -178,8 +179,15 @@ export function ResultScreen({ session, onReset, onResume }: ResultScreenProps) 
           setCurrentSession(updatedSession);
           await saveSession(updatedSession);
         }}
+        onMarkersChange={async (updatedMarkers) => {
+          const updatedSession = { ...currentSession, markers: updatedMarkers };
+          setCurrentSession(updatedSession);
+          await saveSession(updatedSession);
+        }}
         setupData={currentSession.setupData}
         modeId={currentSession.modeId}
+        language={language}
+        checklist={currentSession.checklist}
       />
     </div>
   );

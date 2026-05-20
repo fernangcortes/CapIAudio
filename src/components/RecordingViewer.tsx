@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Marker, RecordingSession } from '../types';
+import React, { useState, useRef } from 'react';
+import { Marker, RecordingSession, ChecklistItem } from '../types';
 import { downloadAudio, generatePremiereXML, generateDaVinciCSV, exportSessionToZip } from '../services/exportService';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2, Edit2, Check, MessageSquare, Archive, X } from 'lucide-react';
+import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2, Edit2, Check, MessageSquare, Archive, X, Play } from 'lucide-react';
+import { getTranslation } from '../services/translationService';
 
 interface RecordingViewerProps {
   audioBlob: Blob;
@@ -19,9 +20,12 @@ interface RecordingViewerProps {
   title?: string;
   onTitleChange?: (newTitle: string) => void;
   onTranscriptionChange?: (newTranscription: string) => void;
+  onMarkersChange?: (newMarkers: Marker[]) => void;
   cinemaMetadata?: any;
   setupData?: Record<string, any>;
   modeId?: string;
+  language?: 'pt' | 'en';
+  checklist?: ChecklistItem[];
 }
 
 export function RecordingViewer({ 
@@ -39,10 +43,34 @@ export function RecordingViewer({
   title,
   onTitleChange,
   onTranscriptionChange,
+  onMarkersChange,
   cinemaMetadata,
   setupData,
-  modeId
+  modeId,
+  language = 'pt',
+  checklist
 }: RecordingViewerProps) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const t = (key: Parameters<typeof getTranslation>[0]) => getTranslation(key, language);
+
+  const handleJumpToTime = (time: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+      audioRef.current.play().catch(err => console.log('Playback started after interaction user permission: ', err));
+    }
+  };
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
+
+  const handleDeleteMarker = (markerId: string) => {
+    if (onMarkersChange) {
+      const updatedMarkers = markers.filter(m => m.id !== markerId);
+      onMarkersChange(updatedMarkers);
+    }
+    if (selectedMarkerId === markerId) {
+      setSelectedMarkerId(null);
+    }
+  };
+
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title || '');
   const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
@@ -207,6 +235,29 @@ export function RecordingViewer({
         </div>
       </div>
 
+      {/* Interactive Glossy Audio Player */}
+      {!isProcessing && audioUrl && (
+        <div className="mb-6 bg-[#161925] border border-indigo-505/10 p-5 rounded-2xl flex flex-col sm:flex-row items-center gap-4 justify-between shadow-lg">
+          <div className="flex items-center gap-3">
+            <span className="flex h-3 w-3 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-zinc-200 uppercase tracking-widest">{language === 'pt' ? 'ÁUDIO INTEGRADO' : 'INTEGRATED AUDIO'}</p>
+              <p className="text-xs text-zinc-400">{language === 'pt' ? 'Clique em qualquer botão de tempo nos marcadores abaixo para ouvir aquele trecho!' : 'Click any timestamp button in markers below to play from that moment!'}</p>
+            </div>
+          </div>
+          <audio 
+            ref={audioRef}
+            src={audioUrl} 
+            controls 
+            className="w-full sm:max-w-md h-10 accent-indigo-500 rounded-xl outline-none"
+            id="report-audio-player"
+          />
+        </div>
+      )}
+
       {/* Export Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <button onClick={() => setShowExportModal(true)} className="flex items-center justify-center gap-2 p-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-2xl transition-colors border border-emerald-500/20">
@@ -244,6 +295,35 @@ export function RecordingViewer({
           </div>
         )}
 
+        {checklist && checklist.length > 0 && (
+          <div className="mb-8 border-t border-zinc-800/50 pt-8">
+            <h4 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+              <span className="text-emerald-400">☑️</span> Checklist do Fluxo Realizado
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {checklist.map((item) => (
+                <div 
+                  key={item.id} 
+                  className={`flex items-center gap-3 p-3 rounded-xl border text-xs transition-all ${
+                    item.completed 
+                      ? 'bg-[#10b981]/5 border-[#10b981]/15 text-[#34d399] font-medium' 
+                      : 'bg-zinc-800/10 border-white/5 text-zinc-550 line-through opacity-50'
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                    item.completed 
+                      ? 'bg-[#10b981] border-transparent text-zinc-900' 
+                      : 'border-zinc-700 text-zinc-650'
+                  }`}>
+                    {item.completed && <Check size={11} className="stroke-[3.5]" />}
+                  </div>
+                  <span className="break-words leading-tight">{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <h4 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
@@ -271,7 +351,7 @@ export function RecordingViewer({
                   <span>{dec}</span>
                 </li>
               ))}
-              {(!aiData?.decisions || aiData.decisions.length === 0) && <li className="text-zinc-600">{getDecisionsEmptyLabel()}</li>}
+              {(!aiData?.decisions || aiData.decisions.length === 0) && <li className="text-zinc-650">{getDecisionsEmptyLabel()}</li>}
             </ul>
           </div>
         </div>
@@ -342,27 +422,71 @@ export function RecordingViewer({
 
       {/* Markers & Comments */}
       {markers.length > 0 && (
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8">
-          <h3 className="text-xl font-medium text-white mb-6 flex items-center gap-2">
-            <MessageSquare className="text-emerald-400" /> Marcadores e Comentários
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-8" id="results-markers-section">
+          <h3 className="text-xl font-medium text-white mb-2 flex items-center gap-2">
+            <MessageSquare className="text-emerald-400" /> {language === 'pt' ? 'Marcadores e Comentários' : 'Markers & Comments'}
           </h3>
+          <p className="text-zinc-500 text-xs mb-6">
+            {language === 'pt' ? 'Clique em um marcador para abrir opções como exclusão.' : 'Click a marker to display actions such as absolute deletion.'}
+          </p>
           <div className="space-y-4">
             {markers.map((marker, i) => (
-              <div key={i} className="flex items-start gap-4 bg-zinc-800/30 p-4 rounded-2xl border border-zinc-700/30">
-                <div className="flex-shrink-0 w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-2xl">
-                  {marker.icon}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-white">{marker.label}</span>
-                    <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-md">
-                      {Math.floor(marker.time / 60)}:{(Math.floor(marker.time % 60)).toString().padStart(2, '0')}
-                    </span>
+              <div 
+                key={marker.id || i} 
+                onClick={() => setSelectedMarkerId(selectedMarkerId === marker.id ? null : marker.id)}
+                className={`flex flex-col gap-1 p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                  selectedMarkerId === marker.id 
+                    ? 'bg-indigo-500/10 border-indigo-505/40 ring-1 ring-indigo-500/20 shadow-md shadow-indigo-500/5' 
+                    : 'bg-zinc-800/30 border-zinc-700/30 hover:bg-zinc-800/50 hover:border-zinc-700/60'
+                }`}
+                id={`marker-card-item-${marker.id}`}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-2xl select-none">
+                    {marker.icon}
                   </div>
-                  {marker.data && (
-                    <p className="text-zinc-400 text-sm">{marker.data}</p>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="font-semibold text-white truncate">{marker.label}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleJumpToTime(marker.time);
+                        }}
+                        className="text-xs text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white border border-indigo-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1 font-mono transition-colors"
+                        title={language === 'pt' ? 'Pular para este momento no áudio' : 'Jump to this timestamp in audio'}
+                        id={`btn-jump-time-${marker.id}`}
+                      >
+                        ▶ {Math.floor(marker.time / 60)}:{(Math.floor(marker.time % 60)).toString().padStart(2, '0')}
+                      </button>
+                    </div>
+                    {marker.data && (
+                      <p className="text-zinc-400 text-sm mt-1 break-words">{marker.data}</p>
+                    )}
+                  </div>
                 </div>
+
+                <AnimatePresence>
+                  {selectedMarkerId === marker.id && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="mt-3 pt-3 border-t border-zinc-800/60 flex items-center justify-end gap-2 overflow-hidden"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => handleDeleteMarker(marker.id)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-500/10 hover:bg-red-550 text-red-400 hover:text-white rounded-xl text-xs font-semibold border border-red-500/20 hover:border-transparent transition-all hover:scale-105 duration-200 uppercase tracking-wider"
+                        id={`btn-delete-marker-${marker.id}`}
+                      >
+                        <Trash2 size={13} />
+                        {t('deleteMarker')}
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ))}
           </div>
