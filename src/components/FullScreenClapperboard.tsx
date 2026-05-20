@@ -14,22 +14,43 @@ export function FullScreenClapperboard({ metadata, onClose }: FullScreenClapperb
   const [isClapping, setIsClapping] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
 
+  const enterFullScreenMode = () => {
+    const elem = document.documentElement;
+    const req = elem.requestFullscreen || 
+                (elem as any).webkitRequestFullscreen || 
+                (elem as any).msRequestFullscreen || 
+                (elem as any).mozRequestFullScreen;
+    if (req) {
+      req.call(elem).catch((err: any) => {
+        console.warn(`Error attempting to enable full-screen:`, err);
+      });
+    }
+  };
+
+  const exitFullScreenMode = () => {
+    const doc = document as any;
+    const exit = doc.exitFullscreen || 
+                 doc.webkitExitFullscreen || 
+                 doc.msExitFullscreen || 
+                 doc.mozCancelFullScreen;
+    const isFull = doc.fullscreenElement || 
+                   doc.webkitFullscreenElement || 
+                   doc.msFullscreenElement || 
+                   doc.mozFullScreenElement;
+    if (exit && isFull) {
+      exit.call(doc).catch((err: any) => {
+        console.warn(`Error attempting to exit full-screen:`, err);
+      });
+    }
+  };
+
   useEffect(() => {
     audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    const elem = document.documentElement;
-    if (elem.requestFullscreen) {
-      elem.requestFullscreen().catch((err) => {
-        console.warn(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-      });
-    }
+    enterFullScreenMode();
 
     return () => {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch((err) => {
-          console.warn(`Error attempting to exit full-screen mode: ${err.message} (${err.name})`);
-        });
-      }
+      exitFullScreenMode();
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
@@ -60,6 +81,7 @@ export function FullScreenClapperboard({ metadata, onClose }: FullScreenClapperb
   };
 
   const handleClap = () => {
+    enterFullScreenMode(); // Ensure maximized state if exited by mistake
     if (isClapping) return;
     setIsClapping(true);
     playBeep();

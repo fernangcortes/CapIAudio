@@ -12,6 +12,9 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
+        workbox: {
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Allow up to 5MB files to be precached
+        },
         manifest: {
           name: 'CapIAudio',
           short_name: 'CapIAudio',
