@@ -2,8 +2,9 @@ import React, { useState, useRef } from 'react';
 import { Marker, RecordingSession, ChecklistItem } from '../types';
 import { downloadAudio, generatePremiereXML, generateDaVinciCSV, exportSessionToZip } from '../services/exportService';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2, Edit2, Check, MessageSquare, Archive, X, Play } from 'lucide-react';
+import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2, Edit2, Check, MessageSquare, Archive, X, Play, ListTodo, CheckSquare, Sparkles, Loader2, Share2 } from 'lucide-react';
 import { getTranslation } from '../services/translationService';
+import { getCachedAccessToken, signInWithGoogle } from '../services/firebase';
 
 interface RecordingViewerProps {
   audioBlob: Blob;
@@ -73,6 +74,11 @@ export function RecordingViewer({
 
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title || '');
+  const [accessToken, setAccessToken] = useState<string | null>(getCachedAccessToken());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [syncMessage, setSyncMessage] = useState('');
+  const [syncedCount, setSyncedCount] = useState(0);
   const [editingSpeaker, setEditingSpeaker] = useState<string | null>(null);
   const [newSpeakerName, setNewSpeakerName] = useState('');
   const [showExportModal, setShowExportModal] = useState(false);
@@ -121,6 +127,136 @@ export function RecordingViewer({
     };
     await exportSessionToZip(tempSession, exportOptions);
     setShowExportModal(false);
+  };
+
+  const handleExportToGoogleTasks = async () => {
+    setIsSyncing(true);
+    setSyncStatus('syncing');
+    setSyncMessage(language === 'pt' ? 'Autenticando com o Google...' : 'Authenticating with Google...');
+
+    try {
+      let currentToken = accessToken || getCachedAccessToken();
+      if (!currentToken) {
+        setSyncMessage(language === 'pt' ? 'Aguardando login no popup...' : 'Awaiting login in popup...');
+        await signInWithGoogle();
+        currentToken = getCachedAccessToken();
+        if (!currentToken) {
+          throw new Error(
+            language === 'pt' 
+              ? 'Não foi possível obter a chave de acesso do Google.' 
+              : 'Could not obtain Google access token.'
+          );
+        }
+        setAccessToken(currentToken);
+      }
+
+      setSyncMessage(language === 'pt' ? 'Criando Nova Lista de Tarefas...' : 'Creating New Task List...');
+      const listTitle = `[Claquete] ${title || (language === 'pt' ? 'Sem Título' : 'Untitled')}`;
+      
+      let listResponse = await fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title: listTitle }),
+      });
+
+      // Handle token expiration
+      if (listResponse.status === 401) {
+        setSyncMessage(language === 'pt' ? 'Sessão expirada. Tentando reconectar...' : 'Session expired. Reconnecting...');
+        await signInWithGoogle();
+        currentToken = getCachedAccessToken();
+        if (!currentToken) {
+          throw new Error(
+            language === 'pt' 
+              ? 'Não foi possível renovar a sessão do Google.' 
+              : 'Could not refresh Google session.'
+          );
+        }
+        setAccessToken(currentToken);
+        listResponse = await fetch('https://tasks.googleapis.com/tasks/v1/users/@me/lists', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ title: listTitle }),
+        });
+      }
+
+      if (!listResponse.ok) {
+        const errDetails = await listResponse.text();
+        throw new Error(`Google Tasks API Error: ${listResponse.statusText}. ${errDetails}`);
+      }
+
+      const listData = await listResponse.json();
+      const listId = listData.id;
+
+      // Collect items to push
+      const itemsToPush: Array<{ text: string; completed: boolean }> = [];
+
+      // 1. Checklist Items
+      if (checklist && checklist.length > 0) {
+        checklist.forEach(item => {
+          itemsToPush.push({ text: item.text, completed: item.completed });
+        });
+      }
+
+      // 2. AI Tasks
+      if (aiData?.tasks && aiData.tasks.length > 0) {
+        aiData.tasks.forEach((task: string) => {
+          itemsToPush.push({ text: `[IA] ${task}`, completed: false });
+        });
+      }
+
+      if (itemsToPush.length === 0) {
+        setSyncMessage(language === 'pt' ? 'Nenhuma tarefa encontrada para sincronizar.' : 'No tasks found to sync.');
+        setSyncStatus('success');
+        return;
+      }
+
+      setSyncMessage(language === 'pt' ? `Puxando ${itemsToPush.length} tarefas...` : `Pushing ${itemsToPush.length} tasks...`);
+      let successCount = 0;
+
+      for (const item of itemsToPush) {
+        const taskRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: item.text,
+            status: item.completed ? 'completed' : 'needsAction',
+          }),
+        });
+
+        if (taskRes.ok) {
+          successCount++;
+          setSyncedCount(successCount);
+          setSyncMessage(
+            language === 'pt'
+              ? `Sincronizando tarefas: ${successCount} de ${itemsToPush.length}`
+              : `Syncing tasks: ${successCount} of ${itemsToPush.length}`
+          );
+        }
+      }
+
+      setSyncedCount(successCount);
+      setSyncStatus('success');
+      setSyncMessage(
+        language === 'pt'
+          ? `Sucesso! Criada a lista "${listTitle}" com ${successCount} tarefas no seu Google Tasks.`
+          : `Success! Created list "${listTitle}" with ${successCount} tasks in your Google Tasks.`
+      );
+    } catch (err: any) {
+      console.error('Task export error:', err);
+      setSyncStatus('error');
+      setSyncMessage(err.message || String(err));
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // Extract unique speakers from markers
@@ -272,6 +408,113 @@ export function RecordingViewer({
         <button onClick={() => generateDaVinciCSV(markers, cinemaMetadata)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
           <FileCode2 size={20} /> CSV (DaVinci)
         </button>
+      </div>
+
+      {/* Google Tasks (Google Keep Fallback) Synchronization */}
+      <div className="bg-[#1b1e2c] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none text-blue-500">
+          <ListTodo size={120} />
+        </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-1">
+            <h4 className="text-lg font-bold text-white flex items-center gap-2">
+              <span className="p-1.5 bg-blue-500/10 text-blue-400 rounded-xl">
+                <ListTodo size={20} className="stroke-[2.5]" />
+              </span>
+              {language === 'pt' ? 'Exportar para o Google Tasks / Keep' : 'Export to Google Tasks / Keep'}
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                {language === 'pt' ? 'Conexão Ativa' : 'Active Connection'}
+              </span>
+            </h4>
+            <p className="text-zinc-400 text-xs max-w-xl leading-relaxed mt-2">
+              {language === 'pt' 
+                ? 'Como o Google Keep é restrito pelo Google a contas corporativas com domínio próprio, nós integramos com o Google Tasks! Toda a sua lista de checagem e as tarefas da Inteligência Artificial serão exportadas diretamente para a sua agenda Google.'
+                : 'Since Google Keep is restricted to domain-based corporate accounts, we integrate with Google Tasks! Your checklist results and AI-identified actions will be exported instantly to your Google Agenda and Todo list.'}
+            </p>
+          </div>
+
+          <div className="shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {syncStatus === 'idle' && (
+              <button
+                onClick={handleExportToGoogleTasks}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-400 text-black font-bold text-xs rounded-xl transition-all cursor-pointer text-center shadow-lg shadow-blue-500/10"
+              >
+                <Share2 size={14} />
+                {accessToken ? (language === 'pt' ? 'Sincronizar Agora' : 'Sync Now') : (language === 'pt' ? 'Conectar e Sincronizar' : 'Connect and Sync')}
+              </button>
+            )}
+
+            {syncStatus === 'syncing' && (
+              <div className="flex items-center gap-3 bg-blue-500/5 border border-blue-500/10 px-5 py-3 rounded-xl text-blue-400 text-xs font-semibold">
+                <Loader2 size={16} className="animate-spin" />
+                <span>{syncMessage}</span>
+              </div>
+            )}
+
+            {syncStatus === 'success' && (
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl text-emerald-400 text-xs font-bold">
+                  <Check size={16} className="stroke-[3]" />
+                  <span>{language === 'pt' ? 'Sincronizado!' : 'Synced!'}</span>
+                </div>
+                <button 
+                  onClick={() => setSyncStatus('idle')}
+                  className="text-[10px] text-zinc-500 hover:text-zinc-300 underline mt-1 text-right"
+                >
+                  {language === 'pt' ? 'Sincronizar novamente' : 'Sync again'}
+                </button>
+              </div>
+            )}
+
+            {syncStatus === 'error' && (
+              <div className="flex flex-col items-stretch sm:items-end gap-2">
+                <div className="bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl text-red-500 text-xs max-w-xs break-words font-semibold leading-relaxed">
+                  {language === 'pt' ? 'Falha: ' : 'Error: '} {syncMessage}
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      setAccessToken(null);
+                      setSyncStatus('idle');
+                    }}
+                    className="text-[10px] bg-zinc-850 hover:bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg font-semibold transition-all border border-white/5"
+                  >
+                    {language === 'pt' ? 'Trocar Conta' : 'Switch Account'}
+                  </button>
+                  <button 
+                    onClick={handleExportToGoogleTasks}
+                    className="text-[10px] bg-blue-500 text-black font-bold px-3 py-1.5 rounded-lg hover:bg-blue-400 transition-all"
+                  >
+                    {language === 'pt' ? 'Tentar Novamente' : 'Retry'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {syncStatus === 'success' && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="mt-4 p-4.5 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl text-xs text-zinc-300 space-y-1.5 relative z-10"
+          >
+            <p className="font-semibold text-emerald-400 flex items-center gap-1.5">
+              <span>🎉</span> {language === 'pt' ? 'Sincronização realizada com sucesso!' : 'Synchronization complete!'}
+            </p>
+            <p className="leading-relaxed text-zinc-400">
+              {syncMessage}
+            </p>
+            <div className="flex items-center gap-1 text-[10px] text-zinc-500 mt-2 font-medium">
+              <span>💡</span>
+              <span>
+                {language === 'pt' 
+                  ? 'As tarefas foram salvas no seu Google Tasks oficial. Você pode acessá-las no app do celular ou na barra lateral do Google Agenda/Gmail.' 
+                  : 'Tasks were saved to your official Google Tasks list. View them in your Tasks mobile app or inside Google Calendar/Gmail sidebar.'}
+              </span>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* AI Summary */}

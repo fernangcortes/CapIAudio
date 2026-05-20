@@ -1,13 +1,26 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL */
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+}, (firebaseConfig as any).firestoreDatabaseId); /* CRITICAL */
 export const auth = getAuth(app);
 
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('https://www.googleapis.com/auth/tasks');
+
+let cachedAccessToken: string | null = null;
+
+export function getCachedAccessToken() {
+  return cachedAccessToken;
+}
+
+export function setCachedAccessToken(token: string | null) {
+  cachedAccessToken = token;
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -72,6 +85,10 @@ export async function testConnection() {
 export async function signInWithGoogle() {
   try {
     const result = await signInWithPopup(auth, googleProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      cachedAccessToken = credential.accessToken;
+    }
     return result.user;
   } catch (error) {
     console.error('Google Sign-In Error: ', error);
@@ -83,6 +100,7 @@ export async function signInWithGoogle() {
 export async function logOut() {
   try {
     await signOut(auth);
+    cachedAccessToken = null;
   } catch (error) {
     console.error('Logout Error: ', error);
     throw error;
