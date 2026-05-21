@@ -311,6 +311,51 @@ export default function App() {
     }
   }, [remoteState.metadata, isRecording, syncRoomId, cinemaMetadata]);
 
+  // Two-way synchronization between cinemaMetadata and setupData for matching fields in Cinema mode
+  useEffect(() => {
+    if (currentModeId === 'cinema') {
+      setSetupData(prev => {
+        const next = { ...prev };
+        let changed = false;
+        if (next.project !== cinemaMetadata.movieName) {
+          next.project = cinemaMetadata.movieName || '';
+          changed = true;
+        }
+        if (next.scene !== cinemaMetadata.scene) {
+          next.scene = cinemaMetadata.scene || '';
+          changed = true;
+        }
+        if (next.shot !== cinemaMetadata.shot) {
+          next.shot = cinemaMetadata.shot || '';
+          changed = true;
+        }
+        return changed ? next : prev;
+      });
+    }
+  }, [cinemaMetadata.movieName, cinemaMetadata.scene, cinemaMetadata.shot, currentModeId]);
+
+  useEffect(() => {
+    if (currentModeId === 'cinema') {
+      setCinemaMetadata(prev => {
+        let changed = false;
+        const next = { ...prev };
+        if (setupData.project !== undefined && setupData.project !== prev.movieName) {
+          next.movieName = setupData.project;
+          changed = true;
+        }
+        if (setupData.scene !== undefined && setupData.scene !== prev.scene) {
+          next.scene = setupData.scene;
+          changed = true;
+        }
+        if (setupData.shot !== undefined && setupData.shot !== prev.shot) {
+          next.shot = setupData.shot;
+          changed = true;
+        }
+        return changed ? next : prev;
+      });
+    }
+  }, [setupData.project, setupData.scene, setupData.shot, currentModeId]);
+
   const handleStartRecording = () => {
     if (isEditingLayout) setIsEditingLayout(false);
     setPendingBlobs([]);
@@ -348,7 +393,14 @@ export default function App() {
   const handleStop = async () => {
     const newBlob = await stopRecording();
     
-    const sessionTitle = setupData.title || setupData.project || setupData.story || setupData.subject || setupData.interviewee || setupData.doctorName || `Gravação - ${new Date().toLocaleString()}`;
+    let sessionTitle = setupData.title || setupData.project || setupData.story || setupData.subject || setupData.interviewee || setupData.doctorName || `Gravação - ${new Date().toLocaleString()}`;
+    if (currentModeId === 'cinema') {
+      const pName = cinemaMetadata.movieName || 'Projeto';
+      const sName = cinemaMetadata.scene ? `Cena ${cinemaMetadata.scene}` : '';
+      const shName = cinemaMetadata.shot ? `Plano ${cinemaMetadata.shot}` : '';
+      const tkName = cinemaMetadata.take ? `Take ${cinemaMetadata.take}` : '';
+      sessionTitle = [pName, sName, shName, tkName].filter(Boolean).join(' - ');
+    }
     
     let session = currentSession;
     if (!session) {

@@ -1,70 +1,128 @@
-# Análise e Plano de Implementação: CapIAudio (Modular & AI-Powered)
+# 📖 Análise de Arquitetura & Plano de Implementação Modular: CapIAudio
 
-## 1. Análise das Solicitações e Novas Ideias
-
-Com base no `readme.txt` e `tour-CapIAudio.html` fornecidos, e incorporando as novas regras, o CapIAudio evolui de um simples gravador para um **sistema modular de captação e enriquecimento de mídia**.
-
-**Principais Mudanças e Sugestões:**
-1. **Arquitetura Estritamente Modular:** Separação clara entre o motor de áudio, o sistema de marcação (markers), a interface de usuário e os serviços de IA. Adicionar um botão não deve quebrar a gravação.
-2. **Exportação de Áudio Nativa:** O app deve permitir baixar o arquivo de áudio gravado (`.webm` ou `.wav`), não apenas os metadados.
-3. **Marcador de Pessoa (Dinâmico):** Um botão que, ao ser clicado, salva o tempo exato e abre um modal (sem pausar a gravação) para digitar o nome da pessoa.
-4. **Criador de Botão Ao Vivo:** Permite criar um novo botão de marcação durante a gravação. O tempo é salvo no momento do clique em "Criar", e o marcador é consolidado após o usuário definir o nome/ícone do novo botão.
-5. **Integração DaVinci Resolve:** Além do XML do Premiere, exportação de marcadores em formato `.EDL` ou `.CSV` compatível com o DaVinci Resolve.
-6. **Integração Google Maps (Grounding):** Uso do modelo `gemini-2.5-flash` com a tool `googleMaps`. Se um local for mencionado ou marcado, a IA busca dados reais e exibe o mapa/links.
-7. **Geração de Imagens (Nano Banana 2):** Botão para "Descrever Visualmente". Usa o `gemini-3.1-flash-image-preview` para gerar uma imagem conceitual do momento chave discutido.
-8. **Transcrição de Áudio:** Uso do `gemini-3-flash-preview` para transcrever o áudio gravado e cruzar com os marcadores.
+Este documento estabelece a análise arquitetural das ferramentas do CapIAudio descritas no manual (`documentacao.html` / `README.md`) e propõe a reformulação do código do projeto para um **design estritamente modular**, orientado pelo contrato do tipo `RecordingModeModule`.
 
 ---
 
-## 2. Arquitetura Modular Proposta (React/Vite)
+## 1. 🔍 Análise da Arquitetura Atual
 
-- **Core/Engine:**
-  - `useAudioRecorder`: Hook responsável apenas por captar o microfone, gerar o Blob de áudio e gerenciar o tempo (timer).
-  - `useMarkers`: Hook responsável por armazenar a lista de marcadores e botões customizados.
-- **UI Components:**
-  - `RecorderUI`: Botão de gravar/parar e waveform.
-  - `MarkerGrid`: Renderiza os botões dinamicamente com base no modo atual.
-  - `Modals`: Modais independentes para "Nome da Pessoa" e "Criar Botão".
-- **AI Services (`src/services/ai/`):**
-  - `transcriptionService.ts`: Comunicação com Gemini 3 Flash para áudio.
-  - `mapsService.ts`: Comunicação com Gemini 2.5 Flash + Google Maps Tool.
-  - `imageService.ts`: Comunicação com Gemini 3.1 Flash Image Preview.
-- **Export Services (`src/services/export/`):**
-  - `audioExport.ts`: Download do Blob.
-  - `premiereExport.ts`: Geração de XML.
-  - `davinciExport.ts`: Geração de CSV/EDL.
+A arquitetura descrita nas páginas do manual indica um rico escopo de captação e pós-produção audiovisual:
+1. **Gravação e Processamento de Áudio:** Gerenciados pelo client via `Web Audio API` e `MediaRecorder`.
+2. **Registro de Marcadores e Metadados:** Salvos diretamente no banco de dados local do navegador (`IndexedDB`).
+3. **Colaboração e Sincronia de Telas:** Comunicação bilateral em tempo real usando `Socket.IO` via WebSockets.
+4. **Enriquecimento com IA (Google Gemini):** Transcrições e resumos especializados.
+
+### O Problema do Monolitismo
+Atualmente, as listas de botões, formulários de metadados de entrada (como o caso do formulário do cinema) e comportamentos pós-gravação estão misturados em arquivos corporativos como `App.tsx` e `constants.ts`. Adicionar novos botões ou novos modos (hoje totalizando mais de 25 variações em 6+ categorias) ameaça a estabilidade física da gravação de áudio em andamento.
 
 ---
 
-## 3. Sprints e Tasks Detalhadas
+## 2. 🏛️ Proposta de Arquitetura Modular Decoplada
 
-### Sprint 1: Fundação Modular e Gravação de Áudio
-*Foco: Garantir que a gravação e o timer funcionem perfeitamente, isolados do resto.*
-- [ ] **Task 1.1:** Criar estrutura de pastas (`components`, `hooks`, `services`, `types`).
-- [ ] **Task 1.2:** Implementar `useAudioRecorder.ts` usando `MediaRecorder` API. Deve retornar `start`, `stop`, `pause`, `resume`, `audioBlob` e `currentTime`.
-- [ ] **Task 1.3:** Criar o componente visual `Recorder.tsx` com o botão gigante animado e um visualizador de waveform simples (usando Web Audio API ou CSS animations baseadas em volume).
-- [ ] **Task 1.4:** Implementar a exportação básica de áudio (`audioExport.ts`) para permitir o download do arquivo `.webm`.
+Para isolar cada um dos **6+ Modos de Criação**, propomos que cada modo passe a funcionar como uma unidade fechada e independente de software que herda propriedades e ganchos de ciclo de vida de uma única interface comum: `RecordingModeModule`.
 
-### Sprint 2: Sistema de Marcadores Dinâmicos
-*Foco: Botões que registram o tempo sem interromper a gravação.*
-- [ ] **Task 2.1:** Implementar `useMarkers.ts` para gerenciar o estado dos marcadores (`{ id, time, type, label, data }`).
-- [ ] **Task 2.2:** Criar o `MarkerGrid.tsx` com os 6 modos pré-definidos (Entrevista, Palestra, Reunião, Médica, Literária, Jornalismo).
-- [ ] **Task 2.3:** Implementar o **Marcador de Pessoa**: Botão que captura o tempo atual e abre um modal flutuante para digitar o nome. Ao salvar, adiciona o marcador.
-- [ ] **Task 2.4:** Implementar o **Criador de Botão Ao Vivo**: Botão "+" que captura o tempo, abre modal para definir Ícone e Nome. Ao salvar, adiciona o botão ao grid atual E registra o marcador no tempo capturado.
-
-### Sprint 3: Exportação Profissional (Premiere & DaVinci)
-*Foco: Transformar os metadados em arquivos úteis para editores de vídeo.*
-- [ ] **Task 3.1:** Desenvolver `premiereExport.ts` para gerar o arquivo `.xml` do Final Cut Pro (compatível com Premiere), mapeando cores para diferentes tipos de tags.
-- [ ] **Task 3.2:** Desenvolver `davinciExport.ts` para gerar um arquivo `.csv` no formato de marcadores do DaVinci Resolve (`Name,Notes,Marker Type,Color,In,Out,Duration`).
-- [ ] **Task 3.3:** Criar a interface de "Resultados" que aparece após o STOP, listando os botões de download (Áudio, XML, CSV).
-
-### Sprint 4: Inteligência Artificial (Gemini Suite)
-*Foco: Transcrição, Mapas e Geração de Imagens.*
-- [ ] **Task 4.1:** Integrar `@google/genai` no projeto.
-- [ ] **Task 4.2:** Implementar **Transcrição**: Enviar o `audioBlob` para o `gemini-3-flash-preview` para gerar a transcrição em texto.
-- [ ] **Task 4.3:** Implementar **Google Maps Grounding**: Criar um botão "Marcar Local". Ao final, enviar os locais para o `gemini-2.5-flash` com a tool `googleMaps` para retornar links reais e coordenadas.
-- [ ] **Task 4.4:** Implementar **Geração de Imagem**: Criar botão "Descrever Visualmente". Usar `gemini-3.1-flash-image-preview` para gerar uma imagem baseada no contexto do momento (ex: prompt gerado a partir de uma anotação de texto).
-- [ ] **Task 4.5:** Consolidar todos os resultados da IA na tela final (Resumo, Tarefas, Mapas, Imagens Geradas).
+### Diagrama Arquitetural Decoplado
+```
+     ┌────────────────────────────────────────────────────────┐
+     │                       CapIAudio Core                   │
+     │ ┌──────────────────────┐      ┌──────────────────────┐ │
+     │ │   useAudioRecorder   │◄────►│      useMarkers      │ │
+     │ └──────────────────────┘      └──────────────────────┘ │
+     └───────────▲──────────────────────────────▲─────────────┘
+                 │                              │
+                 ▼       [Comunicação via ID]   ▼
+     ┌────────────────────────────────────────────────────────┐
+     │                RecordingModuleManager                  │
+     └───────▲──────────────────▲──────────────────▲──────────┘
+             │                  │                  │
+ ┌───────────▼───────────┐ ┌────▼────────────────┐ ┌───▼─────────────────┐
+ │   Cinema Module       │ │   Meeting Module    │ │   Medical Module    │
+ │ (Framer Motion Clack) │ │ (Action-Plan Specs) │ │ (Patient Care Logs) │
+ └───────────────────────┘ └─────────────────────┘ └─────────────────────┘
+```
 
 ---
-*Este documento serve como guia de implementação. A arquitetura garante que a adição de novos modos ou ferramentas de IA no futuro não interfira no motor de gravação principal.*
+
+## 3. 🌐 Protocolos de Troca de Dados e Interfaces
+
+Os contratos estritos de comunicação entre os módulos individuais e o núcleo do sistema foram estabelecidos no arquivo compile-safe em `/src/types/modular.ts`:
+
+### A. Interface Principal (`RecordingModeModule`)
+Cada objeto representando um modo de criação é registrado no sistema preenchendo as chaves:
+- `id`: O identificador canônico.
+- `category`: Agrupador funcional do menu lateral/grade geral.
+- `defaultButtons`: O grid encapsulado de marcadores e cores.
+- `formFields`: Os parâmetros e entradas textuais solicitados no setup inicial.
+- **Hooks de Ciclo de Vida:**
+  - `onInitialize()`: Configurações de estado iniciais do módulo.
+  - `validateSetupData(data)`: Validador semântico com aviso de erro em UI antes de dar o Start.
+  - `onMarkerAdded(marker, context)`: Interceptador de tempo real para injetar descritores inteligentes ou links.
+  - `customRenderControlPanel(context, action)`: Permite injetar painéis visuais complexos (como a claquete gigante física animada).
+  - `getAIPromptTemplates(lang)`: Retorna os parâmetros de instruções precisos de Prompt para guiar o Gemini a transcrever de maneira formatada na profissão do usuário.
+  - `formatExport(session, format)`: Customiza saídas e strings de exportação de dados (XML, CSV, etc).
+
+### B. Protocolo JSON de Troca de Estado e Eventos
+A transferência de mensagens entre módulos e o editor utiliza os seguintes esquemas de metadados:
+
+#### Estado da Gravação (`ModeRecordingContext`):
+```json
+{
+  "currentTime": 45.23,
+  "sessionState": "recording",
+  "markers": [
+    { "id": "m1", "time": 12.5, "type": "action", "label": "Novo Slide" }
+  ],
+  "language": "pt"
+}
+```
+
+#### Pacote de Exportação de Dados (`ModeExportPackage`):
+```json
+{
+  "sessionId": "b48f93-02fd-4a1b-98f5-3c8b",
+  "audioDuration": 254.8,
+  "setupData": {
+    "paciente": "Fernando",
+    "consultorio": "Clínica A"
+  },
+  "exportFormat": "premiere_xml",
+  "formattedOutput": "<xml>...</xml>"
+}
+```
+
+---
+
+## 4. 🚀 Roadmap e Sprints de Implementação
+
+Dividimos o desenvolvimento em Sprints isoladas, com documentações de apoio completas localizadas no diretório `/tasks/`:
+
+### 📂 Estrutura de Task Files Criadas:
+- 🛠️ [**Estrutura de Coordenação / Core Framework**](./tasks/core-framework-tasks.md)
+- 🎬 [**Módulo Cinema & Set de Filmagem**](./tasks/module-cinema-tasks.md)
+- 👔 [**Módulo Reuniões de Diretoria**](./tasks/module-meeting-tasks.md)
+- 🩺 [**Módulo Registro e Consulta Médica**](./tasks/module-medical-tasks.md)
+- 👨‍🏫 [**Módulo Aulas & Acadêmicos**](./tasks/module-lecture-tasks.md)
+- ✍️ [**Módulo Criação Literária & Roteiros**](./tasks/module-literary-tasks.md)
+- 🎤 [**Módulo Jornalismo de Campo**](./tasks/module-journalism-tasks.md)
+
+---
+
+## 5. 🛠️ Plano Detalhado de Sprints
+
+### Sprint 1: Fundação Modular, Gerenciador de Cadastros e Core TypeScript
+- **CORE-1:** Migrar todas as definições base de metadados de `constants.ts` para o novo modelo de registro de objetos.
+- **CORE-2:** Implementar o barramento central `RecordingModuleManager` para orquestrar ativação de módulos e seus ciclos de lifecycle hooks.
+- **CORE-3:** Integrar os loops de eventos em `/src/App.tsx`, limpando do arquivo central as regras específicas de renderização que pertenciam aos modos.
+
+### Sprint 2: Implementação dos Módulos Especializados (Cinema e Jornalismo)
+- **CINEMA-1:** Mover propriedades de claquete e renderização reativa de Framer Motion do componente físico global para dentro do escopo do módulo de Cinema.
+- **JOURNALISM-1:** Integrar triggers inteligentes de geolocalização aos marcadores do Jornalismo de Campo, acionando o Maps Grounding do Gemini apenas no módulo apropriado.
+
+### Sprint 3: Implementação dos Módulos de Operações e Saúde (Reuniões, Médico e Aulas)
+- **MEETING-1:** Implementar filtros de Action-Items estruturados em atas dinâmicas e exportação para canais.
+- **MEDICAL-1:** Injetar as proteções de privacidade em sanitização de áudio para fichas SOAP e guias diagnósticos.
+- **LECTURE-1:** Estruturar exportações compatíveis com flashcards para cronogramas e avaliações de provas.
+
+### Sprint 4: Consolidação dos Serviços de IA Segmentados por Módulo
+- **AI-1:** Vincular de forma desacoplada o `getAIPromptTemplates` do módulo ativo às chamadas da API do Gemini, direcionando a IA conforme a persona profissional selecionada pelo cliente.
+- **AI-2:** Testes de regressão do áudio principal, atestando que erros em prompts ou modificações em um módulo não impedem os outros de operarem normalmente.

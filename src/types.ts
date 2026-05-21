@@ -71,12 +71,18 @@ export interface CinemaMetadata {
   scene?: string;
   shot?: string;
   take?: string;
-  camera?: string;
-  rollCard?: string;
-  lens?: string;
+  camera?: string; // Camera label, e.g., 'A', 'B', 'C'
+  rollCard?: string; // Camera card roll, e.g., 'A002'
+  lens?: string; // Lens identifier, e.g., '50mm'
   goodTake?: boolean;
   director?: string;
   dop?: string;
+  // Extended technical fields
+  soundRoll?: string; // Audio roll, e.g., 'S001'
+  fps?: string; // Frame rate, e.g., '24fps'
+  aperture?: string; // Aperture/Stop, e.g., 'T2.8'
+  shutter?: string; // Shutter Angle or Speed, e.g., '180' or '1/48'
+  iso?: string; // ISO sensitivity, e.g., '800'
 }
 
 export interface RecordingSession {
