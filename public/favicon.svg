@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="primary-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+    <radialGradient id="radial-glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#0f111a" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Outer Slate Background -->
+  <rect width="512" height="512" rx="128" fill="#0f111a" />
+  
+  <!-- Outer Border -->
+  <rect x="8" y="8" width="496" height="496" rx="120" fill="none" stroke="url(#primary-grad)" stroke-width="6" opacity="0.3" />
+  
+  <!-- Glowing Background Center -->
+  <circle cx="256" cy="256" r="200" fill="url(#radial-glow)" />
+
+  <g transform="translate(106, 106)">
+    <!-- Base Board Shadow -->
+    <rect x="25" y="100" width="250" height="150" rx="20" fill="#1e293b" opacity="0.4" />
+    
+    <!-- Clapperboard Base -->
+    <rect x="30" y="110" width="240" height="130" rx="16" fill="#1e2130" stroke="#334155" stroke-width="4" />
+    
+    <!-- Top Bar (Hinge) -->
+    <rect x="30" y="60" width="240" height="40" rx="8" fill="#0f172a" stroke="#334155" stroke-width="4" />
+    
+    <!-- Clapperboard stripes -->
+    <g fill="#334155" opacity="0.8">
+      <path d="M 60,60 L 80,60 L 50,100 L 30,100 Z" />
+      <path d="M 110,60 L 130,60 L 100,100 L 80,100 Z" />
+      <path d="M 160,60 L 180,60 L 150,100 L 130,100 Z" />
+      <path d="M 210,60 L 230,60 L 200,100 L 180,100 Z" />
+      <path d="M 260,60 L 270,60 L 250,100 L 230,100 Z" />
+    </g>
+    
+    <!-- Audio Waveform inside the Clapperboard Base -->
+    <g transform="translate(60, 140)">
+      <!-- Left cyan bar -->
+      <rect x="10" y="25" width="8" height="30" rx="4" fill="#06b6d4" />
+      <rect x="25" y="15" width="8" height="50" rx="4" fill="#06b6d4" />
+      <!-- Center emerald bar (peak) -->
+      <rect x="40" y="5" width="8" height="70" rx="4" fill="#34d399" />
+      <rect x="55" y="15" width="8" height="50" rx="4" fill="url(#primary-grad)" />
+      <!-- Waveform right -->
+      <rect x="70" y="25" width="8" height="30" rx="4" fill="#06b6d4" />
+      <rect x="85" y="10" width="8" height="60" rx="4" fill="#34d399" />
+      <rect x="100" y="20" width="8" height="40" rx="4" fill="#06b6d4" />
+      <rect x="115" y="30" width="8" height="20" rx="4" fill="#34d399" />
+    </g>
+    
+    <!-- Microphone Concept Overlay -->
+    <circle cx="150" cy="175" r="30" fill="none" stroke="#22c55e" stroke-width="4" stroke-dasharray="2 6" opacity="0.6" />
+  </g>
+  
+</svg>

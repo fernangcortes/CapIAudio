@@ -3,7 +3,7 @@ import { RecordingSession } from '../types';
 import { transcribeAudio, generateSummaryAndTasks, fetchLocationData, generateVisualDescription } from '../services/aiService';
 import { saveSession } from '../services/storageService';
 import { RecordingViewer } from './RecordingViewer';
-import { Loader2, Play, FileText, Mic } from 'lucide-react';
+import { Loader2, Play, FileText, Mic, Sparkles } from 'lucide-react';
 
 interface ResultScreenProps {
   session: RecordingSession;
@@ -34,7 +34,7 @@ export function ResultScreen({ session, onReset, onResume, language }: ResultScr
     try {
       // 1. Transcribe
       setStatusText('Transcrevendo áudio...');
-      const text = await transcribeAudio(currentSession.audioBlobs, currentSession.markers);
+      const text = await transcribeAudio(currentSession.audioBlobs, currentSession.markers, 300);
       
       // 2. Summary & Tasks
       setStatusText('Gerando relatório para a edição...');
@@ -104,6 +104,61 @@ export function ResultScreen({ session, onReset, onResume, language }: ResultScr
         <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mb-6" />
         <h2 className="text-xl font-medium text-zinc-300">{statusText}</h2>
         <p className="text-zinc-500 mt-2">Isso pode levar alguns segundos dependendo do tamanho do áudio.</p>
+      </div>
+    );
+  }
+
+  if (currentSession.transcription && !currentSession.summary) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 max-w-2xl mx-auto text-center animate-fade-in px-4">
+        <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/5">
+          <Sparkles size={32} className="text-emerald-400 animate-pulse" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Transcrição Carregada</h2>
+        <p className="text-zinc-400 text-sm mb-8 max-w-md">
+          Seu texto/transcrição foi carregado com sucesso! Agora, use a Inteligência Artificial para gerar o resumo estruturado para o editor de vídeo, tarefas chaves e o Índice de Capítulos.
+        </p>
+        
+        <button
+          onClick={async () => {
+            setLoading(true);
+            try {
+              setStatusText('Gerando relatório com Inteligência Artificial...');
+              const data = await generateSummaryAndTasks(
+                currentSession.transcription!,
+                currentSession.markers || [],
+                currentSession.setupData,
+                currentSession.modeId
+              );
+              
+              const updatedSession = {
+                ...currentSession,
+                summary: data?.summary || 'Resumo gerado.',
+                tasks: data?.tasks || [],
+                decisions: data?.decisions || [],
+                intelligentIndex: data?.intelligentIndex || []
+              };
+              setCurrentSession(updatedSession);
+              await saveSession(updatedSession);
+              setLoading(false);
+            } catch (err: any) {
+              console.error('Erro ao gerar relatório:', err);
+              setStatusText(`Erro ao gerar relatório com IA: ${err.message || err}`);
+              setLoading(false);
+            }
+          }}
+          className="flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded-xl transition-all shadow-lg hover:shadow-emerald-500/20 text-sm cursor-pointer"
+        >
+          <Sparkles size={16} />
+          Gerar Insights e Relatório IA
+        </button>
+        
+        <button
+          onClick={onReset}
+          className="mt-8 text-xs text-zinc-500 hover:text-white transition-colors cursor-pointer"
+        >
+          Voltar ao Início
+        </button>
       </div>
     );
   }
@@ -188,6 +243,8 @@ export function ResultScreen({ session, onReset, onResume, language }: ResultScr
         modeId={currentSession.modeId}
         language={language}
         checklist={currentSession.checklist}
+        localFileName={currentSession.localFileName}
+        localFileSize={currentSession.localFileSize}
       />
     </div>
   );

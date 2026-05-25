@@ -77,6 +77,14 @@ export const translations = {
     signOut: "Sair",
     signedInAs: "Conectado como",
     cloudSyncActive: "Sincronização Ativa",
+    installApp: "Instalar Aplicativo",
+    installAppDescription: "Adicione o CapIAudio à sua tela inicial para gravar e gerenciar sessões sem as barras do navegador, com tela cheia, inicialização ultra-rápida, desempenho fluido e atalhos na tela do celular.",
+    installNow: "Instalar Agora",
+    addHome: "Adicionar à Tela de Início",
+    iosStep1: "Toque no ícone Compartilhar (seta para cima)",
+    iosStep2: "Role a lista e selecione 'Adicionar à Tela de Início'",
+    iosStep3: "Toque em 'Adicionar' para confirmar",
+    installedSuccess: "CapIAudio instalado com sucesso!",
   },
   en: {
     appName: "Digital Slate & AI Marker Assistant",
@@ -156,6 +164,14 @@ export const translations = {
     signOut: "Sign Out",
     signedInAs: "Signed in as",
     cloudSyncActive: "Cloud Sync Active",
+    installApp: "Install App",
+    installAppDescription: "Add CapIAudio to your home screen to record and manage sessions in full-screen, without browser bars, with instant startup, smooth performance, and mobile home screen shortcuts.",
+    installNow: "Install Now",
+    addHome: "Add to Home Screen",
+    iosStep1: "Tap the Share icon (arrow pointing up)",
+    iosStep2: "Scroll down and select 'Add to Home Screen'",
+    iosStep3: "Tap 'Add' to confirm",
+    installedSuccess: "CapIAudio installed successfully!",
   }
 };
 

@@ -11,6 +11,7 @@ export const auth = getAuth(app);
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('https://www.googleapis.com/auth/tasks');
+googleProvider.addScope('https://www.googleapis.com/auth/calendar');
 
 let cachedAccessToken: string | null = null;
 

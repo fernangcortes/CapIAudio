@@ -13,8 +13,11 @@ async function generate() {
     
     for (const part of favRes.candidates[0].content.parts) {
       if (part.inlineData) {
-        fs.writeFileSync('public/favicon.png', Buffer.from(part.inlineData.data, 'base64'));
-        console.log('Favicon saved.');
+        const buffer = Buffer.from(part.inlineData.data, 'base64');
+        fs.writeFileSync('public/favicon.png', buffer);
+        fs.writeFileSync('public/pwa-192x192.png', buffer);
+        fs.writeFileSync('public/pwa-512x512.png', buffer);
+        console.log('Favicon and PWA icons saved.');
         break;
       }
     }

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Marker, RecordingSession, ChecklistItem } from '../types';
 import { downloadAudio, generatePremiereXML, generateDaVinciCSV, exportSessionToZip } from '../services/exportService';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2, Edit2, Check, MessageSquare, Archive, X, Play, ListTodo, CheckSquare, Sparkles, Loader2, Share2 } from 'lucide-react';
+import { Download, FileVideo, FileCode2, MapPin, Image as ImageIcon, CheckCircle2, Trash2, Edit2, Check, MessageSquare, Archive, X, Play, ListTodo, CheckSquare, Sparkles, Loader2, Share2, Calendar, UploadCloud } from 'lucide-react';
 import { getTranslation } from '../services/translationService';
 import { getCachedAccessToken, signInWithGoogle } from '../services/firebase';
 
@@ -27,6 +27,8 @@ interface RecordingViewerProps {
   modeId?: string;
   language?: 'pt' | 'en';
   checklist?: ChecklistItem[];
+  localFileName?: string;
+  localFileSize?: number;
 }
 
 export function RecordingViewer({ 
@@ -49,10 +51,19 @@ export function RecordingViewer({
   setupData,
   modeId,
   language = 'pt',
-  checklist
+  checklist,
+  localFileName,
+  localFileSize
 }: RecordingViewerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const t = (key: Parameters<typeof getTranslation>[0]) => getTranslation(key, language);
+
+  const [reassociatedAudioUrl, setReassociatedAudioUrl] = useState<string>('');
+  const [reassociatedBlob, setReassociatedBlob] = useState<Blob | null>(null);
+  const [reassociationMessage, setReassociationMessage] = useState<string>('');
+
+  const activeAudioUrl = reassociatedAudioUrl || audioUrl;
+  const activeAudioBlob = reassociatedBlob || audioBlob;
 
   const handleJumpToTime = (time: number) => {
     if (audioRef.current) {
@@ -91,6 +102,23 @@ export function RecordingViewer({
     davinciCsv: false
   });
 
+  // Google Calendar Integration states
+  const [calendarSyncStatus, setCalendarSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [calendarSyncMessage, setCalendarSyncMessage] = useState('');
+  const [calendarEventDate, setCalendarEventDate] = useState(() => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  });
+  const [calendarEventTime, setCalendarEventTime] = useState(() => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  });
+  const [calendarEventDuration, setCalendarEventDuration] = useState('60'); 
+  const [calendarEventTitle, setCalendarEventTitle] = useState(() => {
+    return `[CapIAudio] ${title || 'Gravação'}`;
+  });
+  const [calendarEventType, setCalendarEventType] = useState<'log' | 'future'>('log');
+
   const handleSaveTitle = () => {
     if (onTitleChange && editedTitle.trim()) {
       onTitleChange(editedTitle.trim());
@@ -117,7 +145,7 @@ export function RecordingViewer({
       title: title || 'Gravacao',
       date: new Date().toISOString(),
       modeId: 'temp',
-      audioBlobs: [audioBlob],
+      audioBlobs: activeAudioBlob ? [activeAudioBlob] : [],
       markers: markers,
       duration: 0,
       transcription: transcription,
@@ -259,6 +287,145 @@ export function RecordingViewer({
     }
   };
 
+  const handleExportToGoogleCalendar = async () => {
+    setCalendarSyncStatus('syncing');
+    setCalendarSyncMessage(language === 'pt' ? 'Autenticando com o Google Agenda...' : 'Authenticating with Google Calendar...');
+
+    try {
+      let currentToken = accessToken || getCachedAccessToken();
+      if (!currentToken) {
+        setCalendarSyncMessage(language === 'pt' ? 'Aguardando login no popup...' : 'Awaiting login in popup...');
+        await signInWithGoogle();
+        currentToken = getCachedAccessToken();
+        if (!currentToken) {
+          throw new Error(
+            language === 'pt' 
+              ? 'Não foi possível obter a chave de acesso do Google.' 
+              : 'Could not obtain Google access token.'
+          );
+        }
+        setAccessToken(currentToken);
+      }
+
+      setCalendarSyncMessage(language === 'pt' ? 'Estruturando detalhes do evento...' : 'Framing event details...');
+
+      // Combine description
+      const descriptionParts = [];
+      
+      if (aiData?.summary) {
+        descriptionParts.push(`📝 RESUMO EXECUTIVO:\n${aiData.summary}\n`);
+      }
+
+      const tasksLabel = getTasksLabel();
+      if (aiData?.tasks && aiData.tasks.length > 0) {
+        descriptionParts.push(`📌 ${tasksLabel.toUpperCase()}:`);
+        aiData.tasks.forEach((task: string) => {
+          descriptionParts.push(`* ${task}`);
+        });
+        descriptionParts.push('');
+      }
+
+      const decisionsLabel = getDecisionsLabel();
+      if (aiData?.decisions && aiData.decisions.length > 0) {
+        descriptionParts.push(`✅ ${decisionsLabel.toUpperCase()}:`);
+        aiData.decisions.forEach((dec: string) => {
+          descriptionParts.push(`* ${dec}`);
+        });
+        descriptionParts.push('');
+      }
+
+      if (markers && markers.length > 0) {
+        descriptionParts.push(`💬 MARCADORES IMPORTANTES:`);
+        markers.forEach((marker) => {
+          const mTime = `${Math.floor(marker.time / 60)}:${(Math.floor(marker.time) % 60).toString().padStart(2, '0')}`;
+          descriptionParts.push(`[${mTime}] ${marker.icon} ${marker.label} - ${marker.data || ''}`);
+        });
+        descriptionParts.push('');
+      }
+
+      if (cinemaMetadata) {
+        descriptionParts.push(`🎬 METADADOS DE CINEMA:`);
+        if (cinemaMetadata.movieName) descriptionParts.push(`- Filme/Projeto: ${cinemaMetadata.movieName}`);
+        if (cinemaMetadata.scene) descriptionParts.push(`- Cena: ${cinemaMetadata.scene}`);
+        if (cinemaMetadata.shot) descriptionParts.push(`- Plano: ${cinemaMetadata.shot}`);
+        if (cinemaMetadata.take) descriptionParts.push(`- Take: ${cinemaMetadata.take}`);
+        if (cinemaMetadata.lens) descriptionParts.push(`- Lente: ${cinemaMetadata.lens}`);
+        if (cinemaMetadata.camera) descriptionParts.push(`- Câmera: ${cinemaMetadata.camera}`);
+        descriptionParts.push('');
+      }
+
+      descriptionParts.push(`🔗 Gerado pelo CapIAudio - Canivete Suíço da Gravação Inteligente`);
+
+      const eventDescription = descriptionParts.join('\n');
+
+      const startDateTimeStr = `${calendarEventDate}T${calendarEventTime}:00`;
+      const startDate = new Date(startDateTimeStr);
+      
+      const finalStartDate = isNaN(startDate.getTime()) ? new Date() : startDate;
+      const finalEndDate = new Date(finalStartDate.getTime() + parseInt(calendarEventDuration, 10) * 60 * 1000);
+
+      const eventPayload = {
+        summary: calendarEventTitle,
+        description: eventDescription,
+        start: {
+          dateTime: finalStartDate.toISOString(),
+        },
+        end: {
+          dateTime: finalEndDate.toISOString(),
+        },
+      };
+
+      setCalendarSyncMessage(language === 'pt' ? 'Enviando evento para o Google Agenda...' : 'Creating event in Google Calendar...');
+
+      let calendarResponse = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventPayload),
+      });
+
+      if (calendarResponse.status === 401) {
+        setCalendarSyncMessage(language === 'pt' ? 'Sessão expirada. Tentando reconectar...' : 'Session expired. Reconnecting...');
+        await signInWithGoogle();
+        currentToken = getCachedAccessToken();
+        if (!currentToken) {
+          throw new Error(
+            language === 'pt' 
+              ? 'Não foi possível renovar a sessão do Google.' 
+              : 'Could not refresh Google session.'
+          );
+        }
+        setAccessToken(currentToken);
+        calendarResponse = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(eventPayload),
+        });
+      }
+
+      if (!calendarResponse.ok) {
+        const errDetails = await calendarResponse.text();
+        throw new Error(`Google Calendar API Error: ${calendarResponse.statusText}. ${errDetails}`);
+      }
+
+      setCalendarSyncStatus('success');
+      setCalendarSyncMessage(
+        language === 'pt'
+          ? `Sucesso! O evento "${calendarEventTitle}" foi adicionado com sucesso ao seu Google Agenda.`
+          : `Success! The event "${calendarEventTitle}" was successfully added to your Google Calendar.`
+      );
+    } catch (err: any) {
+      console.error('Calendar export error:', err);
+      setCalendarSyncStatus('error');
+      setCalendarSyncMessage(err.message || String(err));
+    }
+  };
+
   // Extract unique speakers from markers
   const knownSpeakers = Array.from(new Set(
     markers
@@ -371,26 +538,91 @@ export function RecordingViewer({
         </div>
       </div>
 
-      {/* Interactive Glossy Audio Player */}
-      {!isProcessing && audioUrl && (
-        <div className="mb-6 bg-[#161925] border border-indigo-505/10 p-5 rounded-2xl flex flex-col sm:flex-row items-center gap-4 justify-between shadow-lg">
-          <div className="flex items-center gap-3">
-            <span className="flex h-3 w-3 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-zinc-200 uppercase tracking-widest">{language === 'pt' ? 'ÁUDIO INTEGRADO' : 'INTEGRATED AUDIO'}</p>
-              <p className="text-xs text-zinc-400">{language === 'pt' ? 'Clique em qualquer botão de tempo nos marcadores abaixo para ouvir aquele trecho!' : 'Click any timestamp button in markers below to play from that moment!'}</p>
+      {/* Interactive Glossy Audio Player / Local File reassociation */}
+      {!isProcessing && (
+        <div className="mb-6 flex flex-col gap-3">
+          {activeAudioUrl ? (
+            <div className="bg-[#161925] border border-indigo-500/10 p-5 rounded-2xl flex flex-col sm:flex-row items-center gap-4 justify-between shadow-lg">
+              <div className="flex items-center gap-3">
+                <span className="flex h-3 w-3 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-200 uppercase tracking-widest">
+                    {language === 'pt' ? 'ÁUDIO INTEGRADO AKTIVO' : 'ACTIVE INTEGRATED AUDIO'}
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    {language === 'pt' 
+                      ? `Áudio ativo: ${localFileName || 'Arquivo local'}.` 
+                      : `Active audio: ${localFileName || 'Local file'}.`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <audio 
+                  ref={audioRef}
+                  src={activeAudioUrl} 
+                  controls 
+                  className="w-full sm:max-w-md h-10 accent-indigo-500 rounded-xl outline-none"
+                  id="report-audio-player"
+                />
+                <label className="text-zinc-500 hover:text-emerald-400 text-[10px] cursor-pointer font-bold border border-zinc-800 hover:border-emerald-500/20 rounded-lg px-2 py-1 transition-all shrink-0">
+                  <span>Trocar Mídia</span>
+                  <input 
+                    type="file" 
+                    accept="audio/*" 
+                    className="hidden" 
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const url = URL.createObjectURL(file);
+                        setReassociatedAudioUrl(url);
+                        setReassociatedBlob(file);
+                        setReassociationMessage(`Sucesso: "${file.name}" vinculado.`);
+                      }
+                    }} 
+                  />
+                </label>
+              </div>
             </div>
-          </div>
-          <audio 
-            ref={audioRef}
-            src={audioUrl} 
-            controls 
-            className="w-full sm:max-w-md h-10 accent-indigo-500 rounded-xl outline-none"
-            id="report-audio-player"
-          />
+          ) : (
+            <div className="bg-zinc-900/50 border border-zinc-800/80 p-5 rounded-2xl flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden animate-fade-in">
+              <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center mb-3">
+                <UploadCloud size={22} className="text-zinc-500" />
+              </div>
+              <h3 className="text-sm font-bold text-zinc-200 mb-1">Mídia do Celular Requerida</h3>
+              <p className="text-xs text-zinc-400 max-w-md mb-4 leading-relaxed">
+                {localFileName 
+                  ? `Para ouvir esta gravação, localize o arquivo correspondente chamado "${localFileName}" na memória do seu celular (${localFileSize ? `${(localFileSize / 1024 / 1024).toFixed(2)} MB` : 'tamanho variável'}) e selecione-o abaixo:`
+                  : 'Esta gravação de texto/transcrição não possui áudio sincronizado nativamente. Vincule um arquivo se desejar tocar junto com os tempos!'
+                }
+              </p>
+              
+              <label className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-zinc-700 hover:border-zinc-600 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2">
+                <UploadCloud size={14} className="text-emerald-400 animate-bounce" />
+                <span>Vincular Áudio de celular</span>
+                <input 
+                  type="file" 
+                  accept="audio/*" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const url = URL.createObjectURL(file);
+                      setReassociatedAudioUrl(url);
+                      setReassociatedBlob(file);
+                      setReassociationMessage(`Mídia vinculada com sucesso: "${file.name}"`);
+                    }
+                  }} 
+                />
+              </label>
+
+              {reassociationMessage && (
+                <p className="text-[10px] text-emerald-400 mt-2">{reassociationMessage}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -399,7 +631,15 @@ export function RecordingViewer({
         <button onClick={() => setShowExportModal(true)} className="flex items-center justify-center gap-2 p-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-2xl transition-colors border border-emerald-500/20">
           <Archive size={20} /> Baixar ZIP
         </button>
-        <button onClick={() => downloadAudio(audioUrl)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
+        <button 
+          onClick={() => activeAudioUrl && downloadAudio(activeAudioUrl)} 
+          disabled={!activeAudioUrl}
+          className={`flex items-center justify-center gap-2 p-4 rounded-2xl transition-colors border ${
+            activeAudioUrl 
+              ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700/50 cursor-pointer' 
+              : 'bg-zinc-900 text-zinc-600 border-zinc-800/80 cursor-not-allowed'
+          }`}
+        >
           <Download size={20} /> Áudio (.webm)
         </button>
         <button onClick={() => generatePremiereXML(markers, cinemaMetadata)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
@@ -515,6 +755,226 @@ export function RecordingViewer({
             </div>
           </motion.div>
         )}
+      </div>
+
+      {/* Google Calendar Synchronization */}
+      <div className="bg-[#1b1e2c] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none text-emerald-500">
+          <Calendar size={120} />
+        </div>
+        <div className="relative z-10 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                <span className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                  <Calendar size={20} className="stroke-[2.5]" />
+                </span>
+                {language === 'pt' ? 'Exportar para o Google Agenda (Calendar)' : 'Export to Google Calendar'}
+                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                  {language === 'pt' ? 'Integração Ativa' : 'Active Integration'}
+                </span>
+              </h4>
+              <p className="text-zinc-400 text-xs max-w-xl leading-relaxed mt-2 font-light">
+                {language === 'pt' 
+                  ? 'Salve os registros desta sessão ou agende um trabalho futuro de edição/revisão diretamente no seu Google Agenda. O evento será criado contendo o relatório de Inteligência Artificial, tarefas e marcadores na descrição!'
+                  : 'Save this session log or schedule editing/review sessions directly inside Google Calendar. The workspace event is populated with the AI report, tasks, and important timeline markers!'}
+              </p>
+            </div>
+          </div>
+
+          {/* Quick toggle between Registration Log and Scheduling Future Work */}
+          <div className="grid grid-cols-2 gap-2 bg-zinc-950/40 p-1 rounded-2xl max-w-md">
+            <button
+              type="button"
+              onClick={() => {
+                setCalendarEventType('log');
+                setCalendarEventTitle(`[CapIAudio] Gravação: ${title || 'Sessão'}`);
+                const now = new Date();
+                setCalendarEventDate(now.toISOString().split('T')[0]);
+                setCalendarEventTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
+              }}
+              className={`py-2 px-3 text-xs font-semibold rounded-xl transition-all cursor-pointer text-center ${
+                calendarEventType === 'log' 
+                  ? 'bg-emerald-500 text-black font-semibold shadow-md' 
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              {language === 'pt' ? 'Registrar Sessão Gravada' : 'Log recorded session'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCalendarEventType('future');
+                setCalendarEventTitle(`[CapIAudio] Edição/Revisão: ${title || 'Sessão'}`);
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                setCalendarEventDate(tomorrow.toISOString().split('T')[0]);
+                setCalendarEventTime('10:00');
+              }}
+              className={`py-2 px-3 text-xs font-semibold rounded-xl transition-all cursor-pointer text-center ${
+                calendarEventType === 'future' 
+                  ? 'bg-emerald-500 text-black font-semibold shadow-md' 
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              {language === 'pt' ? 'Agendar Trabalho Futuro' : 'Schedule Future Work'}
+            </button>
+          </div>
+
+          {/* Setup Agenda Fields Form */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-zinc-900/30 p-4 rounded-2xl border border-white/5">
+            {/* Title Input */}
+            <div className="md:col-span-2 space-y-1.5 text-left">
+              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                {language === 'pt' ? 'Título do Evento' : 'Event Title'}
+              </label>
+              <input
+                type="text"
+                value={calendarEventTitle}
+                onChange={(e) => setCalendarEventTitle(e.target.value)}
+                placeholder={language === 'pt' ? 'Título do compromisso...' : 'Appointment title...'}
+                className="w-full bg-zinc-950/60 border border-zinc-805/50 border-zinc-800 focus:border-emerald-500 focus:outline-none rounded-xl px-3 py-2 text-zinc-105 text-white placeholder-zinc-600 text-xs transition-colors font-medium text-left"
+              />
+            </div>
+
+            {/* Event Date Input */}
+            <div className="space-y-1.5 text-left">
+              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                {language === 'pt' ? 'Data' : 'Date'}
+              </label>
+              <input
+                type="date"
+                value={calendarEventDate}
+                onChange={(e) => setCalendarEventDate(e.target.value)}
+                className="w-full bg-zinc-950/60 border border-zinc-800 focus:border-emerald-500 focus:outline-none rounded-xl px-3 py-2 text-zinc-100 text-xs font-mono transition-colors"
+              />
+            </div>
+
+            {/* Event Time Input */}
+            <div className="space-y-1.5 text-left">
+              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                {language === 'pt' ? 'Hora' : 'Time'}
+              </label>
+              <input
+                type="time"
+                value={calendarEventTime}
+                onChange={(e) => setCalendarEventTime(e.target.value)}
+                className="w-full bg-zinc-950/60 border border-zinc-800 focus:border-emerald-500 focus:outline-none rounded-xl px-3 py-2 text-zinc-100 text-xs font-mono transition-colors"
+                step="300"
+              />
+            </div>
+
+            {/* Duration Dropdown */}
+            <div className="space-y-1.5 text-left md:col-start-3 md:col-span-1">
+              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                {language === 'pt' ? 'Duração aproximada' : 'Approx Duration'}
+              </label>
+              <select
+                value={calendarEventDuration}
+                onChange={(e) => setCalendarEventDuration(e.target.value)}
+                className="w-full bg-zinc-950/60 border border-zinc-800 focus:border-emerald-500 focus:outline-none rounded-xl px-3 py-2 text-zinc-100 text-xs transition-colors"
+              >
+                <option value="15">15 {language === 'pt' ? 'minutos' : 'minutes'}</option>
+                <option value="30">30 {language === 'pt' ? 'minutos' : 'minutes'}</option>
+                <option value="45">45 {language === 'pt' ? 'minutos' : 'minutes'}</option>
+                <option value="60">1 {language === 'pt' ? 'Hora' : 'Hour'}</option>
+                <option value="90">1.5 {language === 'pt' ? 'Horas' : 'Hours'}</option>
+                <option value="120">2 {language === 'pt' ? 'Horas' : 'Hours'}</option>
+                <option value="180">3 {language === 'pt' ? 'Horas' : 'Hours'}</option>
+                <option value="240">4 {language === 'pt' ? 'Horas' : 'Hours'}</option>
+              </select>
+            </div>
+
+            {/* Action buttons inside form */}
+            <div className="md:col-span-1 flex items-end justify-end">
+              {calendarSyncStatus === 'idle' && (
+                <button
+                  type="button"
+                  onClick={handleExportToGoogleCalendar}
+                  className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/10 cursor-pointer transition-all"
+                >
+                  <Share2 size={13} />
+                  {language === 'pt' ? 'Agendar Agenda' : 'Schedule on Agenda'}
+                </button>
+              )}
+
+              {calendarSyncStatus === 'syncing' && (
+                <div className="w-full flex items-center justify-center gap-2 bg-emerald-500/5 border border-emerald-500/10 px-4 py-2.5 rounded-xl text-emerald-400 text-xs font-semibold">
+                  <Loader2 size={14} className="animate-spin animate-infinite" />
+                  <span className="truncate">{language === 'pt' ? 'Sincronizando...' : 'Syncing...'}</span>
+                </div>
+              )}
+
+              {calendarSyncStatus === 'success' && (
+                <div className="w-full flex flex-col items-center">
+                  <div className="w-full flex items-center justify-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-xl text-emerald-400 text-xs font-bold">
+                    <Check size={14} />
+                    <span>{language === 'pt' ? 'Agendado!' : 'Scheduled!'}</span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setCalendarSyncStatus('idle')}
+                    className="text-[9px] text-zinc-500 hover:text-zinc-300 underline mt-1 text-center"
+                  >
+                    {language === 'pt' ? 'Adicionar mais datas' : 'Assign another date'}
+                  </button>
+                </div>
+              )}
+
+              {calendarSyncStatus === 'error' && (
+                <div className="w-full flex flex-col gap-1.5">
+                  <button 
+                    type="button"
+                    onClick={handleExportToGoogleCalendar}
+                    className="w-full py-2 px-3 bg-red-500 text-white font-bold text-xs rounded-xl hover:bg-red-400 transition-all cursor-pointer text-center"
+                  >
+                    {language === 'pt' ? 'Tentar Novamente' : 'Retry'}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setCalendarSyncStatus('idle')}
+                    className="text-[9px] text-zinc-500 hover:text-zinc-400 text-center underline"
+                  >
+                    {language === 'pt' ? 'Voltar' : 'Go back'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Feedback details */}
+          {calendarSyncStatus === 'syncing' && (
+            <div className="text-zinc-400 text-xs animate-pulse font-mono flex items-center gap-2 bg-zinc-950/20 p-3.5 rounded-2xl border border-white/5">
+              <span>🔄</span> {calendarSyncMessage}
+            </div>
+          )}
+
+          {calendarSyncStatus === 'success' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl text-xs text-zinc-350 space-y-1.5"
+            >
+              <p className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                <span>📅</span> {language === 'pt' ? 'Evento sincronizado com sucesso!' : 'Event scheduled successfully!'}
+              </p>
+              <p className="leading-relaxed text-zinc-400">
+                {calendarSyncMessage}
+              </p>
+              <p className="text-[10px] text-zinc-500 font-medium">
+                {language === 'pt' 
+                  ? '💡 Dica: Você já pode ver esse evento na sua agenda oficial. Deseja adicionar outra data? Basta alterar as informações no formulário acima e enviar novamente.' 
+                  : '💡 Tip: You can view this event instantly in your Google Calendar timeline. To schedule an additional meeting using these notes, just update the date/time and click schedule!'}
+              </p>
+            </motion.div>
+          )}
+
+          {calendarSyncStatus === 'error' && (
+            <div className="p-4 bg-red-500/5 border border-red-550/10 rounded-2xl text-xs text-red-400 leading-relaxed font-semibold">
+              <span className="mr-1.5">❌</span> {calendarSyncMessage}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* AI Summary */}

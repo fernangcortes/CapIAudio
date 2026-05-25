@@ -102,4 +102,8 @@ export interface RecordingSession {
   cinemaMetadata?: CinemaMetadata;
   setupData?: Record<string, any>;
   checklist?: ChecklistItem[];
+  localFileName?: string;
+  localFileSize?: number;
+  youtubeUrl?: string;
+  isManualUpload?: boolean;
 }
