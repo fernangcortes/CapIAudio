@@ -100,14 +100,14 @@ export function InstallAppPrompt({ language }: InstallAppPromptProps) {
         initial={{ opacity: 0, y: -20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -20, scale: 0.95 }}
-        className="w-full max-w-xl bg-[#131622] border border-emerald-500/25 rounded-2xl p-5 shadow-2xl relative overflow-hidden text-left"
+        className="w-full max-w-xl subtle-card relative overflow-hidden text-left border-emerald-500/15"
       >
         {/* Subtle background glow */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex gap-4 items-start relative z-10 w-full">
-          <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl shrink-0">
-            <Download size={20} className="stroke-[2.5]" />
+          <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl shrink-0">
+            <Download size={16} className="stroke-[2]" />
           </div>
 
           <div className="flex-1 space-y-1 w-full">

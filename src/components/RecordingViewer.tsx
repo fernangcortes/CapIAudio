@@ -540,22 +540,22 @@ export function RecordingViewer({
 
       {/* Interactive Glossy Audio Player / Local File reassociation */}
       {!isProcessing && (
-        <div className="mb-6 flex flex-col gap-3">
+        <div className="mb-6 flex flex-col gap-3 font-sans">
           {activeAudioUrl ? (
-            <div className="bg-[#161925] border border-indigo-500/10 p-5 rounded-2xl flex flex-col sm:flex-row items-center gap-4 justify-between shadow-lg">
+            <div className="subtle-card flex flex-col sm:flex-row items-center gap-4 justify-between !p-5 relative overflow-hidden">
               <div className="flex items-center gap-3">
-                <span className="flex h-3 w-3 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-zinc-200 uppercase tracking-widest">
-                    {language === 'pt' ? 'ÁUDIO INTEGRADO AKTIVO' : 'ACTIVE INTEGRATED AUDIO'}
+                  <p className="text-xs font-bold text-zinc-300 uppercase tracking-widest">
+                    {language === 'pt' ? 'ÁUDIO INTEGRADO ATIVO' : 'ACTIVE INTEGRATED AUDIO'}
                   </p>
-                  <p className="text-xs text-zinc-400">
+                  <p className="text-[11px] text-zinc-500">
                     {language === 'pt' 
-                      ? `Áudio ativo: ${localFileName || 'Arquivo local'}.` 
-                      : `Active audio: ${localFileName || 'Local file'}.`}
+                      ? `${localFileName || 'Arquivo local de áudio'}.` 
+                      : `${localFileName || 'Local audio file'}.`}
                   </p>
                 </div>
               </div>
@@ -564,7 +564,7 @@ export function RecordingViewer({
                   ref={audioRef}
                   src={activeAudioUrl} 
                   controls 
-                  className="w-full sm:max-w-md h-10 accent-indigo-500 rounded-xl outline-none"
+                  className="w-full sm:max-w-md h-9 accent-emerald-500 rounded-lg outline-none"
                   id="report-audio-player"
                 />
                 <label className="text-zinc-500 hover:text-emerald-400 text-[10px] cursor-pointer font-bold border border-zinc-800 hover:border-emerald-500/20 rounded-lg px-2 py-1 transition-all shrink-0">
@@ -587,21 +587,21 @@ export function RecordingViewer({
               </div>
             </div>
           ) : (
-            <div className="bg-zinc-900/50 border border-zinc-800/80 p-5 rounded-2xl flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden animate-fade-in">
-              <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center mb-3">
-                <UploadCloud size={22} className="text-zinc-500" />
+            <div className="subtle-card flex flex-col items-center justify-center text-center relative overflow-hidden animate-fade-in py-8">
+              <div className="w-10 h-10 rounded-full bg-zinc-950 flex items-center justify-center mb-3 border border-white/[0.03]">
+                <UploadCloud size={16} className="text-zinc-500" />
               </div>
-              <h3 className="text-sm font-bold text-zinc-200 mb-1">Mídia do Celular Requerida</h3>
-              <p className="text-xs text-zinc-400 max-w-md mb-4 leading-relaxed">
+              <h3 className="text-xs font-bold text-zinc-300 mb-1">Mídia do Celular Requerida</h3>
+              <p className="text-[11px] text-zinc-500 max-w-md mb-4 leading-relaxed font-light">
                 {localFileName 
                   ? `Para ouvir esta gravação, localize o arquivo correspondente chamado "${localFileName}" na memória do seu celular (${localFileSize ? `${(localFileSize / 1024 / 1024).toFixed(2)} MB` : 'tamanho variável'}) e selecione-o abaixo:`
                   : 'Esta gravação de texto/transcrição não possui áudio sincronizado nativamente. Vincule um arquivo se desejar tocar junto com os tempos!'
                 }
               </p>
               
-              <label className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-zinc-700 hover:border-zinc-600 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2">
-                <UploadCloud size={14} className="text-emerald-400 animate-bounce" />
-                <span>Vincular Áudio de celular</span>
+              <label className="px-4 py-2 bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-white border border-white/[0.05] rounded-xl text-[11px] font-bold transition-all cursor-pointer flex items-center gap-2">
+                <UploadCloud size={12} className="text-emerald-400" />
+                <span>Vincular Áudio</span>
                 <input 
                   type="file" 
                   accept="audio/*" 
@@ -627,26 +627,26 @@ export function RecordingViewer({
       )}
 
       {/* Export Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <button onClick={() => setShowExportModal(true)} className="flex items-center justify-center gap-2 p-4 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-2xl transition-colors border border-emerald-500/20">
-          <Archive size={20} /> Baixar ZIP
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 font-sans">
+        <button onClick={() => setShowExportModal(true)} className="flex items-center justify-center gap-2 p-3.5 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400 text-xs font-bold rounded-xl transition-colors border border-emerald-500/10 cursor-pointer">
+          <Archive size={15} /> Baixar ZIP
         </button>
         <button 
           onClick={() => activeAudioUrl && downloadAudio(activeAudioUrl)} 
           disabled={!activeAudioUrl}
-          className={`flex items-center justify-center gap-2 p-4 rounded-2xl transition-colors border ${
+          className={`flex items-center justify-center gap-2 p-3.5 rounded-xl text-xs font-bold transition-colors border ${
             activeAudioUrl 
-              ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700/50 cursor-pointer' 
-              : 'bg-zinc-900 text-zinc-600 border-zinc-800/80 cursor-not-allowed'
+              ? 'bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border-white/[0.04] cursor-pointer' 
+              : 'bg-zinc-950 text-zinc-650 border-white/[0.01] cursor-not-allowed'
           }`}
         >
-          <Download size={20} /> Áudio (.webm)
+          <Download size={15} /> Áudio (.webm)
         </button>
-        <button onClick={() => generatePremiereXML(markers, cinemaMetadata)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
-          <FileVideo size={20} /> XML (Premiere)
+        <button onClick={() => generatePremiereXML(markers, cinemaMetadata)} className="flex items-center justify-center gap-2 p-3.5 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 text-xs font-bold rounded-xl transition-colors border border-white/[0.04] cursor-pointer">
+          <FileVideo size={15} /> XML (Premiere)
         </button>
-        <button onClick={() => generateDaVinciCSV(markers, cinemaMetadata)} className="flex items-center justify-center gap-2 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-zinc-300 transition-colors border border-zinc-700/50">
-          <FileCode2 size={20} /> CSV (DaVinci)
+        <button onClick={() => generateDaVinciCSV(markers, cinemaMetadata)} className="flex items-center justify-center gap-2 p-3.5 bg-zinc-900 hover:bg-zinc-850 text-zinc-300 text-xs font-bold rounded-xl transition-colors border border-white/[0.04] cursor-pointer">
+          <FileCode2 size={15} /> CSV (DaVinci)
         </button>
       </div>
 

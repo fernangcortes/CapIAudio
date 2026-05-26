@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAudioRecorder } from './hooks/useAudioRecorder';
 import { useMarkers } from './hooks/useMarkers';
 import { useSync } from './hooks/useSync';
@@ -17,7 +17,7 @@ import { AppMode, RecordingSession, ModeConfig, CinemaMetadata, ChecklistItem } 
 import { ChecklistCard } from './components/ChecklistCard';
 import { DEFAULT_CHECKLISTS } from './defaultChecklists';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings2, History, Edit3, Save, Plus, Wifi, Book, BookOpen, Trash2, LogOut, Undo2, Redo2, AlertCircle, RefreshCw, Radio, Zap, Shield, Key, Youtube, UploadCloud, Sparkles, FileText, Link } from 'lucide-react';
+import { Settings2, History, Edit3, Save, Plus, Wifi, Book, BookOpen, Trash2, LogOut, Undo2, Redo2, AlertCircle, RefreshCw, Radio, Zap, Shield, Key, Youtube, UploadCloud, Sparkles, FileText, Link, ChevronDown, ChevronLeft, ChevronRight, Menu, Globe } from 'lucide-react';
 import { 
   getAISettings, 
   PROVIDER_OPTIONS, 
@@ -94,6 +94,33 @@ export default function App() {
   const [editedModeName, setEditedModeName] = useState('');
   const [isEditingFormFields, setIsEditingFormFields] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isSelectDropdownOpen, setIsSelectDropdownOpen] = useState(false);
+  const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState<boolean>(false);
+  const [isMarkersCollapsed, setIsMarkersCollapsed] = useState<boolean>(false);
+  const [isSourcesCollapsed, setIsSourcesCollapsed] = useState<boolean>(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('SIDEBAR_COLLAPSED') === 'true';
+  });
+  const sidebarModeDropdownRef = useRef<HTMLDivElement>(null);
+  const modeDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const clickedOutsideMain = modeDropdownRef.current && !modeDropdownRef.current.contains(event.target as Node);
+      const clickedOutsideSidebar = sidebarModeDropdownRef.current && !sidebarModeDropdownRef.current.contains(event.target as Node);
+      
+      if (
+        (clickedOutsideMain || !modeDropdownRef.current) && 
+        (clickedOutsideSidebar || !sidebarModeDropdownRef.current)
+      ) {
+        setIsSelectDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   const [modeToDelete, setModeToDelete] = useState<string | null>(null);
 
   const handleSaveFormFields = (updatedFields: any[]) => {
@@ -627,114 +654,338 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f111a] text-white font-sans selection:bg-emerald-500/30">
-      {/* Header */}
-      <header className={`fixed top-0 left-0 right-0 z-50 bg-[#0f111a]/90 backdrop-blur-md border-b border-white/5 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'}`}>
-        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
-          {/* Logo and sync badge */}
-          <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => setView('recorder')}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+    <div className="min-h-screen bg-[#08080c] text-white font-sans selection:bg-emerald-500/30 flex flex-col md:flex-row overflow-x-hidden">
+      
+      {/* --- COLLAPSIBLE SIDEBAR WITH FULL CONTROLS FOR DESKTOP (MD+) --- */}
+      <aside 
+        className={`hidden md:flex flex-col border-r border-white/5 bg-[#090a0f] h-screen sticky top-0 shrink-0 z-40 transition-all duration-300 relative ${
+          isSidebarCollapsed ? 'w-16' : 'w-64'
+        }`}
+      >
+        {/* Toggle Collapse Button */}
+        <button
+          onClick={() => {
+            const nextVal = !isSidebarCollapsed;
+            setIsSidebarCollapsed(nextVal);
+            localStorage.setItem('SIDEBAR_COLLAPSED', String(nextVal));
+          }}
+          className="absolute -right-3 top-5 bg-zinc-900 border border-white/10 hover:border-emerald-500/55 p-1 rounded-full text-zinc-400 hover:text-emerald-400 transition-all cursor-pointer z-55 shadow-md shadow-black"
+          title={isSidebarCollapsed ? "Expandir Menu" : "Recolher Menu"}
+        >
+          {isSidebarCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        </button>
+
+        {/* Sidebar Header: Logo & Sync Badge */}
+        <div className={`p-4 flex items-center gap-2 border-b border-white/5 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+          <div 
+            className="flex items-center gap-2 cursor-pointer shrink-0" 
+            onClick={() => setView('recorder')}
+          >
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0">
               <span className="text-sm font-bold text-black">C</span>
             </div>
-            <div>
-              <h1 className="text-sm md:text-base font-semibold tracking-tight">CapIAudio</h1>
-            </div>
-            {syncRoomId && (
-              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-medium ${isConnected ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
-                <Wifi size={10} className={isConnected ? 'animate-pulse' : ''} />
-                <span className="hidden sm:inline">{syncRoomId}</span>
+            {!isSidebarCollapsed && (
+              <div className="flex flex-col">
+                <h1 className="text-sm font-semibold tracking-tight leading-none">CapIAudio</h1>
+                <span className="text-[9px] text-zinc-500">16:9 Cinema Pro</span>
               </div>
             )}
           </div>
+        </div>
+
+        {/* Sidebar Content Area */}
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-5 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
           
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Google Authentication */}
-            {!isAuthLoading && (
-              user ? (
-                <div className="flex items-center gap-1.5 bg-[#1e2130] pl-1.5 pr-2 py-1 rounded-lg border border-white/5 text-[11px] text-zinc-200 font-medium shrink-0">
-                  {user.photoURL ? (
-                    <img 
-                      src={user.photoURL} 
-                      alt={user.displayName || ''} 
-                      className="w-4 h-4 rounded-full object-cover border border-white/10" 
-                      referrerPolicy="no-referrer" 
-                    />
-                  ) : (
-                    <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[9px]">
-                      {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
+          {/* User Sign In and status */}
+          {!isSidebarCollapsed ? (
+            <div className="flex flex-col gap-2 p-2 rounded-xl bg-zinc-950/40 border border-white/[0.03]">
+              {!isAuthLoading && (
+                user ? (
+                  <div className="flex flex-col gap-2 p-1.5 text-xs">
+                    <div className="flex items-center gap-2">
+                      {user.photoURL ? (
+                        <img 
+                          src={user.photoURL} 
+                          alt={user.displayName || ''} 
+                          className="w-5 h-5 rounded-full object-cover border border-white/10 shrink-0" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px] shrink-0">
+                          {user.displayName?.charAt(0) || user.email?.charAt(0) || '?'}
+                        </div>
+                      )}
+                      <span className="font-semibold text-emerald-400 truncate flex-1">{user.displayName || user.email}</span>
                     </div>
-                  )}
-                  <span className="font-semibold text-emerald-400 max-w-[60px] md:max-w-[100px] truncate">{user.displayName || user.email}</span>
+                    <button
+                      onClick={() => logOut()}
+                      className="w-full mt-1 py-1 px-2 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 border border-transparent hover:border-red-500/10 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1"
+                      title={t('signOut')}
+                    >
+                      <LogOut size={10} />
+                      <span>{t('signOut')}</span>
+                    </button>
+                  </div>
+                ) : (
                   <button
-                    onClick={() => logOut()}
-                    className="p-0.5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 rounded transition-colors cursor-pointer"
-                    title={t('signOut')}
-                    id="btn-google-signout"
+                    onClick={() => signInWithGoogle()}
+                    className="flex items-center justify-center gap-1.5 w-full py-2 px-2.5 rounded-lg text-[10px] bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/20 hover:border-transparent transition-all font-bold cursor-pointer"
                   >
-                    <LogOut size={12} />
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12.24 10.285V13.4h6.887C18.2 15.614 15.645 18 12.24 18c-3.86 0-7-3.14-7-7s3.14-7 7-7c1.7 0 3.25.61 4.47 1.625l2.437-2.437C17.312 1.696 14.933 1 12.24 1c-5.523 0-10 4.477-10 10s4.477 10 10 10c5.783 0 9.87-4.062 9.87-10 0-.675-.06-1.313-.18-1.715H12.24z"/>
+                    </svg>
+                    <span>{t('signInWithGoogle')}</span>
                   </button>
-                </div>
-              ) : (
-                <button
+                )
+              )}
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              {!isAuthLoading && user && (
+                <button 
+                  onClick={() => logOut()}
+                  className="p-1.5 hover:bg-red-500/10 text-zinc-400 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                  title={`${t('signOut')} (${user.displayName || user.email})`}
+                >
+                  <LogOut size={14} />
+                </button>
+              )}
+              {!isAuthLoading && !user && (
+                <button 
                   onClick={() => signInWithGoogle()}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/20 hover:border-transparent transition-all font-bold cursor-pointer"
-                  id="btn-google-signin"
+                  className="p-1.5 hover:bg-emerald-500/10 text-emerald-400 rounded-lg transition-colors cursor-pointer border border-emerald-500/10"
+                  title={t('signInWithGoogle')}
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12.24 10.285V13.4h6.887C18.2 15.614 15.645 18 12.24 18c-3.86 0-7-3.14-7-7s3.14-7 7-7c1.7 0 3.25.61 4.47 1.625l2.437-2.437C17.312 1.696 14.933 1 12.24 1c-5.523 0-10 4.477-10 10s4.477 10 10 10c5.783 0 9.87-4.062 9.87-10 0-.675-.06-1.313-.18-1.715H12.24z"/>
                   </svg>
-                  <span className="hidden sm:inline">{t('signInWithGoogle')}</span>
                 </button>
-              )
+              )}
+            </div>
+          )}
+
+          {/* Module Selector / Customizer Dropdown Box inside Sidebar */}
+          {!isSidebarCollapsed && (
+            <div className="flex flex-col gap-1.5 p-2 bg-zinc-950/20 border border-white/[0.02] rounded-xl text-xs relative">
+              <span className="text-[9px] text-emerald-400/80 uppercase font-semibold tracking-wider ml-1">Modo Ativo</span>
+              <div className="flex items-center gap-1.5 w-full">
+                <div ref={sidebarModeDropdownRef} className="relative w-full z-40">
+                  <button
+                    type="button"
+                    onClick={() => setIsSelectDropdownOpen(!isSelectDropdownOpen)}
+                    className="w-full pl-3 pr-8 py-2 text-xs text-zinc-100 text-left flex items-center gap-1.5 cursor-pointer relative bg-zinc-900 hover:bg-zinc-850/80 border border-zinc-800/80 hover:border-zinc-700 rounded-xl transition-all font-semibold"
+                  >
+                    <span className="text-xs shrink-0 leading-none">{currentMode.icon}</span>
+                    <span className="truncate pr-1.5">{language === 'en' && modeTranslations[currentModeId] ? modeTranslations[currentModeId].name : currentMode.name}</span>
+                    <ChevronDown size={12} className="text-zinc-500 absolute right-2 top-2.5" />
+                  </button>
+
+                  {/* Options list inside sidebar dropdown */}
+                  {isSelectDropdownOpen && (
+                    <div className="absolute top-[calc(100%+4px)] left-0 w-56 bg-[#0c0d16] border border-white/[0.08] shadow-[0_15px_40px_rgba(0,0,0,0.95)] rounded-xl p-1.5 z-55 flex flex-col gap-0.5 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                      {(Object.values(modes) as ModeConfig[]).map((mode) => {
+                        const mTrans = modeTranslations[mode.id];
+                        const displayName = language === 'en' && mTrans ? mTrans.name : mode.name;
+                        const isSelected = mode.id === currentModeId;
+                        return (
+                          <button
+                            key={mode.id}
+                            type="button"
+                            onClick={() => {
+                              setCurrentModeId(mode.id);
+                              setButtons(modes[mode.id].defaultButtons);
+                              setIsEditingFormFields(false);
+                              setIsSelectDropdownOpen(false);
+                            }}
+                            className={`flex items-center gap-2 w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer transition-all ${
+                              isSelected 
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/15' 
+                                : 'text-zinc-300 hover:text-white hover:bg-white/[0.06] border border-transparent'
+                            }`}
+                          >
+                            <span className="text-xs shrink-0">{mode.icon}</span>
+                            <span className="truncate">{displayName}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sidebar Mode CRUD Buttons */}
+              <div className="flex items-center gap-1 justify-between mt-1 pt-1.5 border-t border-white/[0.03]">
+                <button 
+                  onClick={handleCreateMode}
+                  className="flex-1 py-1 px-1 text-[10px] text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg border border-white/5 transition-colors cursor-pointer text-center flex items-center justify-center gap-1 font-medium"
+                >
+                  <Plus size={11} />
+                  <span>Novo Modo</span>
+                </button>
+                {currentMode.custom && (
+                  <div className="flex gap-0.5">
+                    <button 
+                      onClick={() => {
+                        setEditedModeName(currentMode.name);
+                        setIsEditingModeName(true);
+                      }}
+                      className="p-1 px-1.5 text-[10px] text-zinc-400 hover:text-white hover:bg-white/5 rounded-md transition-colors cursor-pointer border border-white/5"
+                    >
+                      Editar
+                    </button>
+                    <button 
+                      onClick={handleDeleteMode}
+                      className="p-1 px-1.5 text-[10px] text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors cursor-pointer border border-red-500/10"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Navigation and Settings menu inside sidebar */}
+          <nav className="flex flex-col gap-1.5 mt-2">
+            
+            {/* Sync room state info for custom lateral widgets if visible */}
+            {!isSidebarCollapsed && syncRoomId && (
+              <div className={`flex items-center justify-between p-2 rounded-xl text-[10px] font-semibold mb-2 ${isConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15' : 'bg-red-500/10 text-red-400 border border-red-500/15'}`}>
+                <div className="flex items-center gap-1.5">
+                  <Wifi size={11} className={isConnected ? 'animate-pulse text-emerald-400' : 'text-red-400'} />
+                  <span className="truncate">Sincronismo: <span className="font-mono text-[9px]">{syncRoomId}</span></span>
+                </div>
+                <span className="text-[8px] bg-black/40 px-1 py-0.5 rounded uppercase">{isConnected ? 'ON' : 'OFF'}</span>
+              </div>
             )}
 
+            {/* Sidebar Active Links */}
+            <button
+              onClick={() => setView('recorder')}
+              className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                view === 'recorder' 
+                  ? 'bg-gradient-to-r from-emerald-500/15 to-emerald-500/5 text-emerald-400 border border-emerald-500/15' 
+                  : 'text-zinc-300 hover:bg-white/5 border border-transparent'
+              } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Gravador & Marcador"
+            >
+              <Radio size={14} className={view === 'recorder' ? 'text-emerald-400' : 'text-zinc-400'} />
+              {!isSidebarCollapsed && <span>{language === 'en' ? 'Recorder' : 'Gravador'}</span>}
+            </button>
+
+            <button
+              onClick={() => setView('history')}
+              className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                view === 'history' 
+                  ? 'bg-gradient-to-r from-emerald-500/15 to-emerald-500/5 text-emerald-400 border border-emerald-500/15' 
+                  : 'text-zinc-300 hover:bg-white/5 border border-transparent'
+              } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title={t('history')}
+            >
+              <History size={14} className={view === 'history' ? 'text-emerald-400' : 'text-zinc-400'} />
+              {!isSidebarCollapsed && <span>{t('history')}</span>}
+            </button>
+
+            <button
+              onClick={() => setView('docs')}
+              className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                view === 'docs' 
+                  ? 'bg-gradient-to-r from-emerald-500/15 to-emerald-500/5 text-emerald-400 border border-emerald-500/15' 
+                  : 'text-zinc-300 hover:bg-white/5 border border-transparent'
+              } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Documentation Docs"
+            >
+              <Book size={14} className={view === 'docs' ? 'text-emerald-400' : 'text-zinc-400'} />
+              {!isSidebarCollapsed && <span>Documentação</span>}
+            </button>
+
+            <button
+              onClick={() => setShowSettings(true)}
+              className={`flex items-center gap-3 w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all text-zinc-300 hover:bg-white/5 border border-transparent ${isSidebarCollapsed ? 'justify-center' : ''}`}
+              title="Configurações AI & API Key"
+            >
+              <Settings2 size={14} className="text-zinc-400" />
+              {!isSidebarCollapsed && <span>Configurações</span>}
+            </button>
+          </nav>
+
+          {/* Catalog open CTA in sidebar */}
+          {!isSidebarCollapsed && (
+            <button
+              onClick={() => setIsCatalogOpen(true)}
+              className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 text-xs rounded-xl transition-all cursor-pointer font-bold tracking-tight"
+            >
+              <BookOpen size={12} />
+              <span>Ver Catálogo</span>
+            </button>
+          )}
+
+        </div>
+
+        {/* Footer Language Selection button */}
+        <div className={`p-4 border-t border-white/5 ${isSidebarCollapsed ? 'flex justify-center' : ''}`}>
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 w-full py-1.5 px-2 rounded-lg text-[10px] bg-[#1e2130]/60 hover:bg-[#1e2130] transition-all border border-white/5 font-bold text-zinc-300 cursor-pointer justify-center"
+            title={t('language')}
+          >
+            <span>🌐</span>
+            {!isSidebarCollapsed && (
+              <span className="truncate">{language === 'pt' ? 'Português' : 'English'}</span>
+            )}
+          </button>
+        </div>
+      </aside>
+
+      {/* --- MOBILE HEADER (HIDDEN ON DESKTOP/MD+) --- */}
+      <header className={`md:hidden fixed top-0 left-0 right-0 z-50 bg-[#08080c]/95 backdrop-blur-md border-b border-white/5 transition-transform duration-300 ${showHeader ? 'translate-y-0' : '-translate-y-full'}`}>
+        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+          {/* Logo and sync badge */}
+          <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => setView('recorder')}>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <span className="text-sm font-bold text-black font-semibold">C</span>
+            </div>
+            <div>
+              <h1 className="text-sm font-bold tracking-tight">CapIAudio</h1>
+            </div>
+            {syncRoomId && (
+              <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-medium ${isConnected ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                <Wifi size={10} className={isConnected ? 'animate-pulse' : ''} />
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Language Selection Toggle */}
             <button
               onClick={toggleLanguage}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] bg-[#1e2130] hover:bg-zinc-800 transition-all border border-white/5 font-bold text-zinc-200 cursor-pointer"
-              title={t('language')}
-              id="btn-lang-toggle"
+              className="px-2 py-1 rounded-lg text-[10px] bg-[#1e2130] border border-white/5 font-bold text-zinc-200 cursor-pointer"
             >
-              🌐 <span className="hidden xs:inline">{language === 'pt' ? 'Português' : 'English'}</span><span className="xs:hidden">{language.toUpperCase()}</span>
+              🌐 {language.toUpperCase()}
             </button>
             
             <div className="flex items-center gap-0.5">
               {view !== 'history' && (
-                <div className="relative group">
-                  <button 
-                    onClick={() => setView('history')}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <History size={16} />
-                  </button>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-[10px] text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                    {t('history')}
-                  </div>
-                </div>
+                <button 
+                  onClick={() => setView('history')}
+                  className="p-1.5 text-zinc-400 hover:text-white rounded-lg cursor-pointer"
+                >
+                  <History size={15} />
+                </button>
               )}
 
               {view !== 'docs' && (
-                <div className="relative group">
-                  <button 
-                    onClick={() => setView('docs')}
-                    className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <Book size={16} />
-                  </button>
-                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-800 text-[10px] text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                    Docs
-                  </div>
-                </div>
+                <button 
+                  onClick={() => setView('docs')}
+                  className="p-1.5 text-zinc-400 hover:text-white rounded-lg cursor-pointer"
+                >
+                  <Book size={15} />
+                </button>
               )}
 
-              <div className="relative group">
-                <button onClick={() => setShowSettings(true)} className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer">
-                  <Settings2 size={16} />
-                </button>
-                <div className="absolute top-full mt-2 right-0 px-2 py-1 bg-zinc-800 text-[10px] text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                  Configurações
-                </div>
-              </div>
+              <button onClick={() => setShowSettings(true)} className="p-1.5 text-zinc-400 hover:text-white rounded-lg cursor-pointer">
+                <Settings2 size={15} />
+              </button>
             </div>
           </div>
         </div>
@@ -1265,25 +1516,26 @@ export default function App() {
         />
       )}
 
-      {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 md:px-6 pt-16 md:pt-20 pb-12 w-full">
+      {/* Main Content Layout - Takes full screen (ideal for 16:9 display) on desktop */}
+      <main className="w-full max-w-[1850px] mx-auto px-2 sm:px-3 lg:px-4 pt-16 md:pt-20 lg:pt-3 pb-2 transition-all h-screen flex flex-col lg:overflow-hidden">
         <AnimatePresence mode="wait">
           {view === 'recorder' && (
             <motion.div
               key="recorder-view"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              className="flex flex-col gap-5 md:gap-8 items-center justify-center min-h-[60vh] w-full"
+              exit={{ opacity: 0, scale: 1.02 }}
+              className="w-full flex-grow flex flex-col overflow-hidden"
             >
               {!isRecording && !audioBlob && (
-                <div className="w-full max-w-xl stagger-1">
+                <div className="w-full max-w-xl mx-auto mb-2 stagger-1 shrink-0">
                   <InstallAppPrompt language={language} />
                 </div>
               )}
 
+              {/* Mobile-Only Mode Selector bar, kept for mobile alignment */}
               {!isRecording && !audioBlob && (
-                <div className="w-full max-w-xl p-3 bg-zinc-900/60 border border-zinc-800/80 rounded-xl flex flex-col xs:flex-row items-center justify-between gap-3 text-sm shadow-xl mt-2 stagger-2">
+                <div className="w-full max-w-xl mx-auto subtle-card !p-3 flex flex-col xs:flex-row items-center justify-between gap-3 text-sm shadow-xl mb-3 stagger-2 relative z-40 md:hidden shrink-0">
                   <div className="flex items-center gap-1.5 self-start xs:self-center">
                     <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase font-semibold tracking-wider">MODO</span>
                   </div>
@@ -1295,11 +1547,11 @@ export default function App() {
                           value={editedModeName}
                           onChange={(e) => setEditedModeName(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSaveModeName()}
-                          className="bg-[#1e2130] border border-emerald-500 text-white text-xs rounded-lg px-2.5 py-1.5 outline-none w-32 focus:ring-1 focus:ring-emerald-500"
+                          className="subtle-input !py-1 flex-1 !border-emerald-500 !text-xs"
                           autoFocus
                           placeholder="Nome do modo..."
                         />
-                        <button onClick={handleSaveModeName} className="p-1 px-2 bg-emerald-500 hover:bg-emerald-400 text-black rounded-lg transition-colors cursor-pointer text-xs flex items-center gap-1 font-bold">
+                        <button onClick={handleSaveModeName} className="p-1 px-2 bg-emerald-500/10 border border-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors cursor-pointer text-xs flex items-center gap-1 font-bold">
                           <Save size={13} />
                           Salvar
                         </button>
@@ -1309,318 +1561,234 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => setIsCatalogOpen(true)}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/15 text-xs rounded-xl transition-all cursor-pointer font-semibold shrink-0"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/15 text-xs rounded-xl transition-all cursor-pointer font-semibold shrink-0"
                           title="Abrir Catálogo Completo de Módulos"
                         >
                           <BookOpen size={13} />
                           <span>Catálogo</span>
                         </button>
-                        <div className="relative w-full xs:w-44">
-                          <select
-                            value={currentModeId}
-                            onChange={(e) => {
-                              const newModeId = e.target.value;
-                              setCurrentModeId(newModeId);
-                              setButtons(modes[newModeId].defaultButtons);
-                              setIsEditingFormFields(false);
-                            }}
-                            className="w-full bg-[#1e2130] border border-white/5 text-white text-xs rounded-xl pl-3 pr-8 py-2 outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer"
-                            style={{ backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.6rem center', backgroundSize: '0.85em' }}
+                        <div ref={modeDropdownRef} className="relative w-full xs:w-48 z-30">
+                          {/* Selected display button */}
+                          <button
+                            type="button"
+                            onClick={() => setIsSelectDropdownOpen(!isSelectDropdownOpen)}
+                            className="w-full pl-3.5 pr-8 py-2 text-xs text-zinc-100 text-left flex items-center gap-2 cursor-pointer relative bg-zinc-900 override-solid-opaque border border-zinc-800/80 hover:border-zinc-700 rounded-xl transition-all shadow-md focus:outline-none focus:ring-1 focus:ring-emerald-500/30 font-semibold"
                           >
-                            {(Object.values(modes) as ModeConfig[]).map((mode) => {
-                              const mTrans = modeTranslations[mode.id];
-                              const displayName = language === 'en' && mTrans ? mTrans.name : mode.name;
-                              return (
-                                <option key={mode.id} value={mode.id}>
-                                  {mode.icon} {displayName}
-                                </option>
-                              );
-                            })}
-                          </select>
+                            <span className="text-sm shrink-0 leading-none">{currentMode.icon}</span>
+                            <span className="truncate pr-2">{language === 'en' && modeTranslations[currentModeId] ? modeTranslations[currentModeId].name : currentMode.name}</span>
+                            <ChevronDown size={14} className="text-zinc-400 absolute right-2.5 top-2" />
+                          </button>
+
+                          {/* Options dropdown list */}
+                          {isSelectDropdownOpen && (
+                            <div className="absolute top-[calc(100%+6px)] right-0 w-64 bg-[#0a0c14] border border-white/[0.08] shadow-[0_10px_40px_rgba(0,0,0,0.95)] rounded-xl p-1.5 z-55 flex flex-col gap-0.5 max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent animate-reveal">
+                              {(Object.values(modes) as ModeConfig[]).map((mode) => {
+                                const mTrans = modeTranslations[mode.id];
+                                const displayName = language === 'en' && mTrans ? mTrans.name : mode.name;
+                                const isSelected = mode.id === currentModeId;
+                                return (
+                                  <button
+                                    key={mode.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setCurrentModeId(mode.id);
+                                      setButtons(modes[mode.id].defaultButtons);
+                                      setIsEditingFormFields(false);
+                                      setIsSelectDropdownOpen(false);
+                                    }}
+                                    className={`flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                                      isSelected 
+                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15' 
+                                        : 'text-zinc-200 hover:text-white hover:bg-white/[0.06] border border-transparent'
+                                    }`}
+                                  >
+                                    <span className="text-sm shrink-0">{mode.icon}</span>
+                                    <span className="truncate">{displayName}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                        {currentMode.custom && (
-                          <div className="flex items-center gap-0.5 shrink-0">
-                            <button 
-                              onClick={() => {
-                                setEditedModeName(currentMode.name);
-                                setIsEditingModeName(true);
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* --- RESPONSIVE SPLIT WORKSPACE: TWO COLUMNS (STRETCHED TO 16:9 SIZE ON PC) --- */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:h-[calc(100vh-6.5rem)] w-full items-stretch overflow-hidden">
+                
+                {/* 
+                  1. LEFT SIDE ELEMENT (PRIMARY WORKSPACE):
+                  Holds Cinema settings config boxes, Large Recorder timers & waveforms.
+                  Adjusted smoothly to the left part of 16:9 display setup.
+                */}
+                <div className={`${isRightSidebarCollapsed ? 'col-span-12' : 'col-span-1 lg:col-span-7 xl:col-span-8'} flex flex-col gap-0 w-full lg:h-full lg:overflow-y-auto subtle-scrollbar`}>
+                  
+                  {/* Workspace top control bar */}
+                  <div className="flex items-center justify-between w-full h-8 px-2 border-b border-white/[0.04] mb-2 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">{language === 'en' ? 'Main View' : 'Visualização Principal'}</span>
+                    </div>
+                    <button
+                      onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+                      className="hidden lg:flex items-center gap-1 text-[9px] uppercase font-bold text-zinc-350 hover:text-emerald-400 bg-black/45 px-2.5 py-1 transition-all border border-white/5 cursor-pointer"
+                      title={isRightSidebarCollapsed ? "Expandir Painel Lateral" : "Recolher Painel Lateral"}
+                    >
+                      {isRightSidebarCollapsed ? <ChevronLeft size={10} /> : <ChevronRight size={10} />}
+                      <span>{isRightSidebarCollapsed ? (language === 'en' ? "Show Sidebar" : "Mostrar Lateral") : (language === 'en' ? "Collapse Sidebar" : "Recolher Lateral")}</span>
+                    </button>
+                  </div>
+
+                  {currentModeId === 'cinema' && (
+                    <div className="w-full stagger-2">
+                      <CinemaHeader 
+                        metadata={cinemaMetadata} 
+                        onChange={setCinemaMetadata} 
+                        isRecording={isRecording} 
+                      />
+                    </div>
+                  )}
+
+                  <div className="w-full stagger-3">
+                    <Recorder
+                      isRecording={isRecording}
+                      isPaused={isPaused}
+                      currentTime={currentTime}
+                      onStart={handleStartRecording}
+                      onStop={handleStopRequest}
+                      onPause={pauseRecording}
+                      modeName={currentMode.name}
+                      modeId={currentModeId}
+                      mediaStream={mediaStream}
+                      setupData={setupData}
+                      setSetupData={setSetupData}
+                      onAutoClaquete={currentModeId === 'cinema' ? handleAutoClaquete : undefined}
+                      formFields={currentMode.formFields}
+                    />
+                  </div>
+
+                  {!isRecording && (
+                    <div className="w-full flex justify-center stagger-4 text-center mt-1.5 shrink-0">
+                      <button
+                        onClick={() => setIsEditingFormFields(true)}
+                        className="subtle-button hover:text-emerald-400 hover:border-emerald-500/10 !px-4 !py-1.5 bg-zinc-900/10 text-xs font-bold"
+                        id="btn-edit-fields-trigger"
+                      >
+                        <Settings2 size={13} className="text-zinc-500" />
+                        Personalizar Campos de Entrada
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Move Markers Grid here if NOT in cinema mode to perfectly fill the empty center hole */}
+                  {currentModeId !== 'cinema' && (
+                    <div className="w-full mt-2.5 stagger-3">
+                      <div className="subtle-card !p-3.5 border border-zinc-800/80">
+                        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                          <div className="flex items-center gap-1.5 cursor-pointer select-none" onClick={() => setIsMarkersCollapsed(!isMarkersCollapsed)}>
+                            {isMarkersCollapsed ? <ChevronRight size={13} className="text-zinc-400" /> : <ChevronDown size={13} className="text-emerald-400" />}
+                            <div>
+                              <h2 className="text-xs sm:text-xs font-bold tracking-wider uppercase text-zinc-300 flex items-center gap-1.5">
+                                {t('markers')}
+                                <span className="text-[9px] text-zinc-500 font-normal normal-case">
+                                  {isMarkersCollapsed ? '[+] abrir' : '[-] fechar'}
+                                </span>
+                              </h2>
+                            </div>
+                          </div>
+                          {!isRecording && !audioBlob && (
+                            <button
+                              onClick={() => isEditingLayout ? handleSaveLayout() : setIsEditingLayout(true)}
+                              className={`p-1 text-[9px] px-2 flex items-center gap-1 transition-all ${isEditingLayout ? 'bg-emerald-500 text-zinc-900 font-bold animate-pulse' : 'text-zinc-400 hover:text-white bg-black/20 border border-zinc-800'}`}
+                              title={isEditingLayout ? t('saveLayout') : t('editLayout')}
+                            >
+                              {isEditingLayout ? <><Save size={10} /> {t('saveLayout')}</> : <><Edit3 size={10} /> {t('editLayout')}</>}
+                            </button>
+                          )}
+                        </div>
+                        
+                        {!isMarkersCollapsed && (
+                          <div className={`transition-opacity duration-300 ${isRecording || isEditingLayout ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                            <MarkerGrid
+                              buttons={customButtons}
+                              onMark={(btn, data, explicitTime) => {
+                                if (!isEditingLayout) {
+                                  const marker = addMarker(currentTime, btn, data, explicitTime);
+                                  if (syncRoomId) syncAddMarker(marker);
+                                }
                               }}
-                              className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
-                              title="Renomear Modo"
-                            >
-                              <Edit3 size={14} />
-                            </button>
-                            <button 
-                              onClick={handleDeleteMode}
-                              className="p-1.5 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-                              title="Excluir Modo"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                              onAddCustomButton={addCustomButton}
+                              currentTime={currentTime}
+                              setButtons={isEditingLayout ? setButtons : undefined}
+                              isEditing={isEditingLayout}
+                              language={language}
+                            />
                           </div>
                         )}
                       </div>
-                    )}
-                    <button 
-                      onClick={handleCreateMode}
-                      className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer border border-white/5 shrink-0"
-                      title="Criar Novo Modo"
-                    >
-                      <Plus size={15} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {currentModeId === 'cinema' && (
-                <div className="w-full stagger-2">
-                  <CinemaHeader 
-                    metadata={cinemaMetadata} 
-                    onChange={setCinemaMetadata} 
-                    isRecording={isRecording} 
-                  />
-                </div>
-              )}
-
-              <div className="flex flex-col md:flex-row gap-12 items-start justify-center w-full">
-                {/* Left Column: Recorder or Editor (Only takes space when NOT recording) */}
-                {!isRecording && (
-                  <div className="w-full md:w-1/3 flex flex-col items-center justify-center">
-                    <div className="w-full flex flex-col items-center justify-center stagger-3">
-                      <Recorder
-                        isRecording={isRecording}
-                        isPaused={isPaused}
-                        currentTime={currentTime}
-                        onStart={handleStartRecording}
-                        onStop={handleStopRequest}
-                        onPause={pauseRecording}
-                        modeName={currentMode.name}
-                        modeId={currentModeId}
-                        mediaStream={mediaStream}
-                        setupData={setupData}
-                        setSetupData={setSetupData}
-                        formFields={currentMode.formFields}
-                      />
                     </div>
-                    <div className="w-full flex flex-col items-center justify-center stagger-4 text-center">
-                      <button
-                        onClick={() => setIsEditingFormFields(true)}
-                        className="mt-4 flex items-center gap-1.5 text-xs text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 font-bold border border-zinc-800/80 hover:border-emerald-500/15 rounded-xl px-4 py-2 cursor-pointer transition-all bg-zinc-900/40"
-                      >
-                        <Settings2 size={13} />
-                        Personalizar Campos
-                      </button>
-                    </div>
+                  )}
+                </div>
 
-                    {/* ✨ Fontes de Relatório Externas (Importação/YouTube) */}
-                    <div className="w-full mt-5 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 flex flex-col text-left shadow-xl stagger-4 relative overflow-hidden">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <Sparkles size={15} className="text-emerald-400 animate-pulse" />
-                        <h3 className="text-xs font-bold text-zinc-100 uppercase tracking-widest">Fontes Alternativas</h3>
-                      </div>
-                      <p className="text-[11px] text-zinc-400 mb-4">Gere relatórios a partir de textos externos ou canais do YouTube</p>
-
-                      {/* Tabs */}
-                      <div className="flex border-b border-zinc-800/80 mb-4 text-xs font-medium">
-                        <button
-                          type="button"
-                          onClick={() => { setImportTab('text'); setImportFeedback(''); }}
-                          className={`flex-1 pb-2 flex items-center justify-center gap-1 transition-all border-b-2 cursor-pointer ${
-                            importTab === 'text' 
-                              ? 'border-emerald-500 text-emerald-400 font-bold' 
-                              : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                          }`}
-                        >
-                          <FileText size={12} />
-                          <span>Texto / Arquivo</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setImportTab('youtube'); setImportFeedback(''); }}
-                          className={`flex-1 pb-2 flex items-center justify-center gap-1 transition-all border-b-2 cursor-pointer ${
-                            importTab === 'youtube' 
-                              ? 'border-emerald-500 text-emerald-400 font-bold' 
-                              : 'border-transparent text-zinc-400 hover:text-zinc-200'
-                          }`}
-                        >
-                          <Youtube size={12} />
-                          <span>YouTube URL</span>
-                        </button>
-                      </div>
-
-                      {/* Tab: Text/File Upload */}
-                      {importTab === 'text' && (
-                        <div className="flex flex-col gap-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Upload de arquivo .txt ou .srt</span>
-                            <label className="text-[10px] bg-zinc-800 hover:bg-zinc-705 text-emerald-400 font-semibold px-2 py-1 rounded-lg border border-zinc-700/60 transition-colors cursor-pointer flex items-center gap-1 shrink-0">
-                              <UploadCloud size={10} />
-                              <span>Escolher</span>
-                              <input 
-                                type="file" 
-                                accept=".txt,.srt" 
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  const reader = new FileReader();
-                                  reader.onload = (event) => {
-                                    const text = event.target?.result;
-                                    if (typeof text === 'string') {
-                                      setImportText(text);
-                                      setImportFeedback(`Sucesso: "${file.name}" carregado.`);
-                                    }
-                                  };
-                                  reader.readAsText(file);
-                                }} 
-                                className="hidden" 
-                              />
-                            </label>
+                {/* 
+                  2. RIGHT SIDE ELEMENTS (SECONDARY METRICS, LISTS & TIMELINE):
+                  Adjusts seamlessly to the right. Holds interactive markers, checklist metrics,
+                  extra alternative transcript utilities or timelines.
+                */}
+                <div className={`${isRightSidebarCollapsed ? 'hidden' : 'col-span-1 lg:col-span-5 xl:col-span-4'} flex flex-col gap-2 w-full lg:h-full lg:overflow-y-auto pr-1 subtle-scrollbar`}>
+                  
+                  {/* Interactive Markers Grid (Cinema Mode Only) */}
+                  {currentModeId === 'cinema' && (
+                    <div className="subtle-card !p-3 stagger-3">
+                      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                        <div className="flex items-center gap-1.5 cursor-pointer select-none" onClick={() => setIsMarkersCollapsed(!isMarkersCollapsed)}>
+                          {isMarkersCollapsed ? <ChevronRight size={13} className="text-zinc-400" /> : <ChevronDown size={13} className="text-emerald-400" />}
+                          <div>
+                            <h2 className="text-xs sm:text-xs font-bold tracking-wider uppercase text-zinc-300 flex items-center gap-1.5">
+                              {t('markers')}
+                              <span className="text-[9px] text-zinc-500 font-normal normal-case">
+                                {isMarkersCollapsed ? '[+] abrir' : '[-] fechar'}
+                              </span>
+                            </h2>
                           </div>
-
-                          <textarea
-                            value={importText}
-                            onChange={(e) => setImportText(e.target.value)}
-                            placeholder="Cole a sua transcrição gravada no celular ou digite o texto de conversa aqui..."
-                            className="w-full bg-[#161925] border border-zinc-850 text-white rounded-xl p-2.5 text-xs h-28 outline-none focus:border-emerald-500/65 transition-all resize-none font-sans leading-relaxed"
+                        </div>
+                        {!isRecording && !audioBlob && (
+                          <button
+                            onClick={() => isEditingLayout ? handleSaveLayout() : setIsEditingLayout(true)}
+                            className={`p-1 text-[9px] px-2 flex items-center gap-1 transition-all ${isEditingLayout ? 'bg-emerald-500 text-zinc-900 font-bold' : 'text-zinc-400 hover:text-white bg-black/20 border border-zinc-800'}`}
+                            title={isEditingLayout ? t('saveLayout') : t('editLayout')}
+                          >
+                            {isEditingLayout ? <><Save size={10} /> {t('saveLayout')}</> : <><Edit3 size={10} /> {t('editLayout')}</>}
+                          </button>
+                        )}
+                      </div>
+                      
+                      {!isMarkersCollapsed && (
+                        <div className={`transition-opacity duration-300 ${isRecording || isEditingLayout ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                          <MarkerGrid
+                            buttons={customButtons}
+                            onMark={(btn, data, explicitTime) => {
+                              if (!isEditingLayout) {
+                                const marker = addMarker(currentTime, btn, data, explicitTime);
+                                if (syncRoomId) syncAddMarker(marker);
+                              }
+                            }}
+                            onAddCustomButton={addCustomButton}
+                            currentTime={currentTime}
+                            setButtons={isEditingLayout ? setButtons : undefined}
+                            isEditing={isEditingLayout}
+                            language={language}
                           />
-
-                          <button
-                            type="button"
-                            disabled={isImporting || !importText.trim()}
-                            onClick={handleTextTranscriptImport}
-                            className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer ${
-                              isImporting || !importText.trim()
-                                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                                : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-emerald-500/5'
-                            }`}
-                          >
-                            <Sparkles size={12} />
-                            <span>Importar Transcrição</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Tab: YouTube URL */}
-                      {importTab === 'youtube' && (
-                        <div className="flex flex-col gap-3">
-                          <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Link do Vídeo do YouTube</span>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              value={youtubeInputUrl}
-                              onChange={(e) => setYoutubeInputUrl(e.target.value)}
-                              placeholder="https://www.youtube.com/watch?v=..."
-                              className="w-full bg-[#161925] border border-zinc-850 text-white rounded-xl pl-8 pr-3 py-2.5 text-xs outline-none focus:border-emerald-500/65 transition-all"
-                            />
-                            <Link size={12} className="absolute left-2.5 top-3.5 text-zinc-500" />
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={isImporting || !youtubeInputUrl.trim()}
-                            onClick={handleYoutubeImport}
-                            className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer ${
-                              isImporting || !youtubeInputUrl.trim()
-                                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                                : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-emerald-500/5'
-                            }`}
-                          >
-                            <Sparkles size={12} />
-                            <span>Extrair &amp; Analisar de YouTube</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Feedbacks / Transitory logs */}
-                      {importFeedback && (
-                        <div className={`mt-3 p-2 rounded-xl text-[10px] line-clamp-2 leading-normal transition-all ${
-                          importFeedback.startsWith('Erro') 
-                            ? 'bg-red-500/10 text-red-400 border border-red-500/10' 
-                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10'
-                        }`}>
-                          {importFeedback}
-                        </div>
-                      )}
-
-                      {isImporting && (
-                        <div className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-emerald-400 font-medium">
-                          <RefreshCw size={11} className="animate-spin" />
-                          <span>Processando dados...</span>
                         </div>
                       )}
                     </div>
+                  )}
 
-                    <div className="w-full mt-6 stagger-5">
-                      <ChecklistCard
-                        checklist={checklist}
-                        onToggle={handleToggleChecklistItem}
-                        onAdd={handleAddChecklistItem}
-                        onDelete={handleDeleteChecklistItem}
-                        isRecording={isRecording}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Recorder fixed at bottom when recording */}
-                {isRecording && (
-                  <Recorder
-                    isRecording={isRecording}
-                    isPaused={isPaused}
-                    currentTime={currentTime}
-                    onStart={handleStartRecording}
-                    onStop={handleStopRequest}
-                    onPause={pauseRecording}
-                    modeName={currentMode.name}
-                    modeId={currentModeId}
-                    mediaStream={mediaStream}
-                    setupData={setupData}
-                    setSetupData={setSetupData}
-                    onAutoClaquete={currentModeId === 'cinema' ? handleAutoClaquete : undefined}
-                    formFields={currentMode.formFields}
-                  />
-                )}
-
-                {/* Right Column: Markers */}
-                <div className={`w-full ${isRecording ? 'md:w-full max-w-3xl mx-auto pb-32' : 'md:w-2/3'}`}>
-                <div className="mb-8 font-sans stagger-3">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h2 className="text-2xl font-bold tracking-tight">{t('markers')}</h2>
-                    {!isRecording && !audioBlob && (
-                      <button
-                        onClick={() => isEditingLayout ? handleSaveLayout() : setIsEditingLayout(true)}
-                        className={`p-2 rounded-xl transition-all hover:scale-105 duration-200 ${isEditingLayout ? 'bg-emerald-500 text-zinc-900 hover:bg-emerald-400 font-semibold' : 'text-zinc-400 hover:text-white hover:bg-zinc-805 bg-zinc-900/40 border border-zinc-800'}`}
-                        title={isEditingLayout ? t('saveLayout') : t('editLayout')}
-                        id="btn-edit-layout-trigger"
-                      >
-                        {isEditingLayout ? <Save size={18} /> : <Edit3 size={18} />}
-                      </button>
-                    )}
-                  </div>
-                  <p className="text-zinc-400 text-sm">
-                    {isEditingLayout ? t('dragToReorder') : t('clickToMark')}
-                  </p>
-                </div>
-                
-                <div className={`stagger-4 transition-opacity duration-500 ${isRecording || isEditingLayout ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-                  <MarkerGrid
-                    buttons={customButtons}
-                    onMark={(btn, data, explicitTime) => {
-                      if (!isEditingLayout) {
-                        const marker = addMarker(currentTime, btn, data, explicitTime);
-                        if (syncRoomId) syncAddMarker(marker);
-                      }
-                    }}
-                    onAddCustomButton={addCustomButton}
-                    currentTime={currentTime}
-                    setButtons={isEditingLayout ? setButtons : undefined}
-                    isEditing={isEditingLayout}
-                    language={language}
-                  />
-                </div>
-
-                {isRecording && (
-                  <div className="mt-8">
+                  {/* Checklist Card */}
+                  <div className="w-full stagger-4">
                     <ChecklistCard
                       checklist={checklist}
                       onToggle={handleToggleChecklistItem}
@@ -1629,76 +1797,231 @@ export default function App() {
                       isRecording={isRecording}
                     />
                   </div>
-                )}
 
-                {/* Timeline Preview (Optional) */}
-                {(markers.length > 0 || remoteMarkers.length > 0) && (
-                  <div className="mt-12 p-6 bg-[#1e2130] rounded-3xl border border-white/5 shadow-lg stagger-5">
-                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Timeline</h3>
-                        {isRecording && (
-                          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
+                  {/* Alternative Sources imports (Text / YouTube) */}
+                  {!isRecording && (
+                    <div className="w-full flex flex-col text-left subtle-card !p-3 relative overflow-hidden stagger-4">
+                      <div 
+                        className="flex items-center justify-between mb-1.5 cursor-pointer select-none"
+                        onClick={() => setIsSourcesCollapsed(!isSourcesCollapsed)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Sparkles size={13} className="text-emerald-400" />
+                          <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                            Fontes Alternativas
+                            <span className="text-[9px] text-zinc-550 font-normal normal-case">
+                              {isSourcesCollapsed ? '[+] abrir' : '[-] fechar'}
+                            </span>
+                          </h3>
+                        </div>
+                      </div>
+
+                      {!isSourcesCollapsed && (
+                        <>
+                          <p className="text-[11px] text-zinc-450 mb-3">Gere relatórios de textos externos ou YouTube</p>
+
+                          {/* Tabs */}
+                          <div className="flex border-b border-zinc-900 mb-3 text-[11px] font-bold">
                             <button
-                              onClick={undoMarker}
-                              disabled={markers.length === 0}
-                              className="p-1 px-2 text-[10px] sm:text-xs text-zinc-400 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:hover:text-zinc-400 disabled:hover:bg-transparent rounded-lg transition-colors flex items-center gap-1 font-medium cursor-pointer"
-                              title="Desfazer último marcador (Undo)"
+                              type="button"
+                              onClick={() => { setImportTab('text'); setImportFeedback(''); }}
+                              className={`flex-1 pb-1.5 flex items-center justify-center gap-1 transition-all border-b-2 cursor-pointer ${
+                                importTab === 'text' 
+                                  ? 'border-emerald-500 text-emerald-400 font-bold' 
+                                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                              }`}
                             >
-                              <Undo2 size={12} />
-                              <span>Undo</span>
+                              <FileText size={11} />
+                              <span>Texto / Arquivo</span>
                             </button>
-                            <span className="w-px h-3 bg-white/10" />
                             <button
-                              onClick={redoMarker}
-                              disabled={redoStack.length === 0}
-                              className="p-1 px-2 text-[10px] sm:text-xs text-zinc-400 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:hover:text-zinc-400 disabled:hover:bg-transparent rounded-lg transition-colors flex items-center gap-1 font-medium cursor-pointer"
-                              title="Refazer marcador desfeito (Redo)"
+                              type="button"
+                              onClick={() => { setImportTab('youtube'); setImportFeedback(''); }}
+                              className={`flex-1 pb-1.5 flex items-center justify-center gap-1 transition-all border-b-2 cursor-pointer ${
+                                importTab === 'youtube' 
+                                  ? 'border-emerald-500 text-emerald-400 font-bold' 
+                                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                              }`}
                             >
-                              <Redo2 size={12} />
-                              <span>Redo</span>
+                              <Youtube size={11} />
+                              <span>YouTube URL</span>
                             </button>
                           </div>
-                        )}
-                      </div>
-                      {remoteState.isRecording && !isRecording && (
-                        <span className="flex items-center gap-2 text-xs font-medium text-red-400 bg-red-400/10 px-2 py-1 rounded-md">
-                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                          Gravando Remotamente
-                        </span>
+
+                          {/* Tab Upload text */}
+                          {importTab === 'text' && (
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] text-zinc-500 uppercase tracking-wider">Upload de arquivo .txt ou .srt</span>
+                                <label className="text-[9px] bg-zinc-900 hover:bg-zinc-800 text-emerald-400 font-semibold px-2 py-0.5 border border-zinc-800 transition-colors cursor-pointer flex items-center gap-1 shrink-0">
+                                  <UploadCloud size={9} />
+                                  <span>Escolher</span>
+                                  <input 
+                                    type="file" 
+                                    accept=".txt,.srt" 
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      const reader = new FileReader();
+                                      reader.onload = (event) => {
+                                        const text = event.target?.result;
+                                        if (typeof text === 'string') {
+                                          setImportText(text);
+                                          setImportFeedback(`Sucesso: "${file.name}" carregado.`);
+                                        }
+                                      };
+                                      reader.readAsText(file);
+                                    }} 
+                                    className="hidden" 
+                                  />
+                                </label>
+                              </div>
+
+                              <textarea
+                                value={importText}
+                                onChange={(e) => setImportText(e.target.value)}
+                                placeholder="Cole o texto de conversa aqui ou faça upload do arquivo..."
+                                className="w-full subtle-input h-20 resize-none font-sans leading-relaxed text-xs !p-2 !rounded-none"
+                              />
+
+                              <button
+                                type="button"
+                                disabled={isImporting || !importText.trim()}
+                                onClick={handleTextTranscriptImport}
+                                className={`w-full py-1.5 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                  isImporting || !importText.trim()
+                                    ? 'bg-zinc-950/40 text-zinc-600 border border-white/[0.01] cursor-not-allowed'
+                                    : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15 border border-emerald-500/10'
+                                }`}
+                              >
+                                <Sparkles size={11} />
+                                <span>Importar Transcrição</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Tab YouTube */}
+                          {importTab === 'youtube' && (
+                            <div className="flex flex-col gap-2">
+                              <span className="text-[9px] text-zinc-500 uppercase tracking-wider">Link do Vídeo do YouTube</span>
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={youtubeInputUrl}
+                                  onChange={(e) => setYoutubeInputUrl(e.target.value)}
+                                  placeholder="https://www.youtube.com/watch?v=..."
+                                  className="w-full subtle-input pl-7 pr-3 py-1.5 text-xs !rounded-none"
+                                />
+                                <Link size={11} className="absolute left-2 top-2.5 text-zinc-500" />
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={isImporting || !youtubeInputUrl.trim()}
+                                onClick={handleYoutubeImport}
+                                className={`w-full py-1.5 rounded-none text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                                  isImporting || !youtubeInputUrl.trim()
+                                    ? 'bg-zinc-950/40 text-zinc-600 border border-white/[0.01] cursor-not-allowed'
+                                    : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15 border border-emerald-500/10'
+                                }`}
+                              >
+                                <Sparkles size={11} />
+                                <span>Extrair &amp; Analisar de YouTube</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Logs feedbacks */}
+                          {importFeedback && (
+                            <div className={`mt-2 p-1.5 rounded-none text-[9px] line-clamp-2 leading-normal transition-all ${
+                              importFeedback.startsWith('Erro') 
+                                ? 'bg-red-500/10 text-red-400 border border-red-500/10' 
+                                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10'
+                            }`}>
+                              {importFeedback}
+                            </div>
+                          )}
+
+                          {isImporting && (
+                            <div className="mt-2 flex items-center justify-center gap-1 text-[9px] text-emerald-400 font-semibold">
+                              <RefreshCw size={10} className="animate-spin" />
+                              <span>Processando dados...</span>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
-                    <div className="space-y-3">
-                      {Array.from(new Map([...remoteMarkers, ...markers].map(m => [m.id, m])).values())
-                        .sort((a, b) => a.time - b.time)
-                        .slice(-5).reverse().map((m) => (
-                        <motion.div 
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          key={m.id} 
-                          className="flex items-center justify-between gap-4 text-sm bg-black/20 p-3 rounded-xl border border-white/[0.02]"
-                        >
-                          <div className="flex items-center gap-4 min-w-0">
-                            <span className="font-mono text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md text-xs shrink-0">
-                              {Math.floor(m.time / 60).toString().padStart(2, '0')}:{Math.floor(m.time % 60).toString().padStart(2, '0')}
-                            </span>
-                            <span className="text-xl shrink-0 select-none">{m.icon}</span>
-                            <span className="text-zinc-300 font-medium truncate">{m.label}</span>
-                            {m.data && <span className="text-zinc-500 truncate text-xs">({m.data})</span>}
-                          </div>
-                          <button
-                            onClick={() => deleteMarker(m.id)}
-                            className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
-                            title="Excluir este marcador"
+                  )}
+
+                  {/* Timeline History preview */}
+                  {(markers.length > 0 || remoteMarkers.length > 0) && (
+                    <div className="subtle-card !p-5 md:!p-6 stagger-5">
+                      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Timeline</h3>
+                          {isRecording && (
+                            <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
+                              <button
+                                onClick={undoMarker}
+                                disabled={markers.length === 0}
+                                className="p-1 px-2 text-[10px] sm:text-xs text-zinc-400 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:hover:text-zinc-400 disabled:hover:bg-transparent rounded-lg transition-colors flex items-center gap-1 font-medium cursor-pointer"
+                                title="Desfazer último marcador (Undo)"
+                              >
+                                <Undo2 size={12} />
+                                <span>Undo</span>
+                              </button>
+                              <span className="w-px h-3 bg-white/10" />
+                              <button
+                                onClick={redoMarker}
+                                disabled={redoStack.length === 0}
+                                className="p-1 px-2 text-[10px] sm:text-xs text-zinc-400 hover:text-white hover:bg-white/5 disabled:opacity-20 disabled:hover:text-zinc-400 disabled:hover:bg-transparent rounded-lg transition-colors flex items-center gap-1 font-medium cursor-pointer"
+                                title="Refazer marcador desfeito (Redo)"
+                              >
+                                <Redo2 size={12} />
+                                <span>Redo</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {remoteState.isRecording && !isRecording && (
+                          <span className="flex items-center gap-2 text-[11px] font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-md">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            Gravando Remotamente
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-2.5">
+                        {Array.from(new Map([...remoteMarkers, ...markers].map(m => [m.id, m])).values())
+                          .sort((a, b) => a.time - b.time)
+                          .slice(-5).reverse().map((m) => (
+                          <motion.div 
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            key={m.id} 
+                            className="flex items-center justify-between gap-4 text-xs bg-black/20 p-2.5 rounded-xl border border-white/[0.02]"
                           >
-                            <Trash2 size={14} />
-                          </button>
-                        </motion.div>
-                      ))}
+                            <div className="flex items-center gap-3 min-w-0">
+                              <span className="font-mono text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md text-[10px] shrink-0">
+                                {Math.floor(m.time / 60).toString().padStart(2, '0')}:{Math.floor(m.time % 60).toString().padStart(2, '0')}
+                              </span>
+                              <span className="text-base shrink-0 select-none">{m.icon}</span>
+                              <span className="text-zinc-350 font-medium truncate">{m.label}</span>
+                              {m.data && <span className="text-zinc-500 truncate text-[11px] font-medium">({m.data})</span>}
+                            </div>
+                            <button
+                              onClick={() => deleteMarker(m.id)}
+                              className="p-1 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer shrink-0"
+                              title="Excluir este marcador"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </motion.div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+
+                </div>
               </div>
             </motion.div>
           )}

@@ -47,14 +47,99 @@
   animation-delay: 425ms;
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-::-webkit-scrollbar {
-  display: none;
+/* 🎨 Unified Fine Craftsmanship Theme Classes */
+.subtle-card {
+  background-color: rgb(13, 14, 22);
+  backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0px !important; /* 0px */
+  padding: 0.625rem !important; /* Extremely high density */
+  box-shadow: none;
+  transition: all 0.15s ease;
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
+.subtle-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.subtle-input {
+  background-color: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0px !important; /* 0px */
+  padding: 0.35rem 0.5rem !important;
+  color: #f4f4f5; /* zinc-100 */
+  outline: none;
+  font-size: 0.75rem; /* tight 12px */
+  line-height: normal;
+  transition: all 0.1s ease;
+}
+
+.subtle-input:focus {
+  border-color: rgba(16, 185, 129, 0.6); /* emerald-500 */
+  background-color: rgba(0, 0, 0, 0.45);
+}
+
+.subtle-button {
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #e4e4e7; /* zinc-200 */
+  border-radius: 0px !important; /* 0px */
+  padding: 0.35rem 0.75rem !important;
+  font-size: 0.75rem; /* 12px */
+  font-weight: 650;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  cursor: pointer;
+}
+
+.subtle-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.subtle-button:active {
+  transform: scale(0.99);
+}
+
+.subtle-badge {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a1a1aa; /* zinc-400 */
+  border-radius: 0px !important; /* 0px */
+  padding: 0.1rem 0.3rem !important;
+  font-size: 0.65rem; /* 10.5px */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Thin scrollbars for high-density containers */
+.subtle-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+  display: block !important;
+}
+
+.subtle-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 9px;
+}
+
+.subtle-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.subtle-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+body::-webkit-scrollbar {
+  display: none;
 }
 

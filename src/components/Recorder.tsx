@@ -101,31 +101,41 @@ export function Recorder({ isRecording, isPaused, currentTime, onStart, onStop, 
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden w-full max-w-md mx-auto">
-      <div className="text-5xl font-mono text-zinc-300 mb-10 z-10 font-light tracking-wider">
-        {formatTime(currentTime)}
-      </div>
+    <div className="subtle-card relative overflow-hidden w-full !p-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-center w-full relative z-10">
+        
+        {/* Left Side: Recording Trigger, Timer, and Pulsing mic indicator */}
+        <div className="col-span-1 md:col-span-4 flex flex-row md:flex-col items-center justify-around md:justify-center gap-3 md:border-r md:border-white/10 md:pr-4 py-1">
+          <div className="flex flex-col items-center md:items-center">
+            <div className="text-3xl md:text-4xl font-mono text-zinc-100 font-bold tracking-tight">
+              {formatTime(currentTime)}
+            </div>
+            <div className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase mt-0.5">
+              Toque para começar
+            </div>
+          </div>
 
-      <div className="w-full mb-8 z-10">
-        <ModeSetupForm 
-          modeId={modeId || 'default'} 
-          setupData={setupData} 
-          onChange={setSetupData} 
-          formFields={formFields}
-        />
-      </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onStart}
+            className="flex items-center justify-center w-14 h-14 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.18)] transition-all bg-red-600 hover:bg-red-500 text-white cursor-pointer relative shrink-0"
+          >
+            <Mic size={24} className="text-white relative z-10" />
+            <span className="absolute inset-0 rounded-full bg-red-600/25 animate-ping opacity-75" />
+          </motion.button>
+        </div>
 
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={onStart}
-        className="relative z-10 flex items-center justify-center w-28 h-28 rounded-full shadow-[0_0_40px_rgba(239,68,68,0.3)] transition-colors bg-red-500 text-white hover:bg-red-600"
-      >
-        <Mic size={48} />
-      </motion.button>
-      
-      <div className="mt-6 text-sm text-zinc-500 z-10 font-medium tracking-wide uppercase">
-        Toque para gravar
+        {/* Right Side: Setup form fields inside a snug embedded pane */}
+        <div className="col-span-1 md:col-span-8 w-full bg-black/15 p-2.5 border border-white/5">
+          <ModeSetupForm 
+            modeId={modeId || 'default'} 
+            setupData={setupData} 
+            onChange={setSetupData} 
+            formFields={formFields}
+          />
+        </div>
+
       </div>
     </div>
   );

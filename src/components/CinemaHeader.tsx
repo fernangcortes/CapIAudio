@@ -26,7 +26,7 @@ export function CinemaAutocompleteInput({
   onSaveOption,
   onDeleteOption,
   disabled,
-  inputClassName = "w-full bg-zinc-800/50 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+  inputClassName = "subtle-input w-full px-3.5 !py-2 text-white disabled:opacity-50 disabled:cursor-not-allowed !text-xs font-semibold"
 }: CinemaAutocompleteInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -72,7 +72,7 @@ export function CinemaAutocompleteInput({
         <button
           type="button"
           onClick={() => !disabled && setIsOpen(!isOpen)}
-          className="absolute right-3.5 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+          className="absolute right-3.5 text-zinc-500 hover:text-zinc-300 cursor-pointer animate-reveal"
           disabled={disabled}
         >
           <ChevronDown size={14} />
@@ -80,7 +80,7 @@ export function CinemaAutocompleteInput({
       </div>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 mt-1.5 bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl p-1.5 z-50 max-h-60 overflow-y-auto">
+        <div className="absolute left-0 right-0 mt-1.5 bg-zinc-950/95 backdrop-blur-md border border-white/[0.05] rounded-xl shadow-2xl p-1.5 z-50 max-h-60 overflow-y-auto subtle-scrollbar">
           {showSaveOption && (
             <button
               type="button"
@@ -103,7 +103,7 @@ export function CinemaAutocompleteInput({
           {filteredOptions.map((opt) => (
             <div
               key={opt}
-              className="flex items-center justify-between px-3 py-1.5 hover:bg-zinc-900 rounded-lg group text-xs text-zinc-200 transition-colors"
+              className="flex items-center justify-between px-3 py-1.5 hover:bg-white/[0.03] rounded-lg group text-xs text-zinc-200 transition-colors"
             >
               <button
                 type="button"
@@ -786,35 +786,35 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
   const activeShot = activeScene?.shots.find(s => s.id === metadata.shotId);
 
   return (
-    <div className="w-full max-w-4xl mx-auto bg-zinc-900/80 backdrop-blur-md border border-zinc-800 rounded-3xl p-6 mb-8 shadow-xl">
-      <div className="flex items-center gap-3 mb-6 border-b border-zinc-800 pb-4">
-        <Film className="text-emerald-500" size={24} />
-        <h2 className="text-xl font-semibold text-white">Claquete Digital</h2>
+    <div className="w-full subtle-card !p-3 shadow-none border-b-0">
+      <div className="flex items-center gap-2.5 mb-3 border-b border-white/[0.05] pb-2">
+        <Film className="text-emerald-500" size={20} />
+        <h2 className="text-base font-bold text-white">Claquete Digital</h2>
         
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => setIsFullScreenClapperboardOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white border border-zinc-700"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors bg-white/[0.02] border border-white/[0.04] text-zinc-300 hover:bg-white/[0.06] hover:text-white"
             title="Claquete em Tela Cheia"
           >
-            <Maximize size={14} />
+            <Maximize size={12} />
             Tela Cheia
           </button>
           <button
             onClick={handleToggleLtc}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${isLtcPlaying ? 'bg-red-500/20 text-red-500 border-red-500/30' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white'}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors border ${isLtcPlaying ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-white/[0.02] border-white/[0.04] text-zinc-400 hover:bg-white/[0.06] hover:text-white'}`}
             title="Emitir sinal de Timecode (LTC)"
           >
-            <Radio size={14} className={isLtcPlaying ? 'animate-pulse' : ''} />
+            <Radio size={12} className={isLtcPlaying ? 'animate-pulse' : ''} />
             {isLtcPlaying ? 'LTC Ativo' : 'Emitir LTC'}
           </button>
         </div>
       </div>
 
       {/* Smart Set Sync: Voice & Visual OCR Gear Scanner */}
-      <div className="mb-6 p-4 bg-zinc-950/40 rounded-2xl border border-zinc-800/80 flex flex-col gap-4">
+      <div className="mb-3 p-3 bg-zinc-950/25 rounded-xl border border-white/[0.03] flex flex-col gap-3">
         {/* Header Tabs */}
-        <div className="flex border-b border-zinc-900 pb-3 gap-6">
+        <div className="flex border-b border-white/[0.02] pb-3 gap-6">
           <button 
             type="button"
             onClick={() => setActiveAssistantTab('voice')}
@@ -1009,7 +1009,7 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
         {/* Projeto */}
         <div>
           <CinemaAutocompleteInput
@@ -1078,10 +1078,10 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
       </div>
 
       {/* Take & Camera Settings */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-zinc-800/50">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-white/[0.05]">
         {/* Take */}
         <div>
-          <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1.5">Take Atual</label>
+          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Take Atual</label>
           <div className="flex gap-2">
             <input
               type="text"
@@ -1089,12 +1089,12 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
               onChange={(e) => handleChange('take', e.target.value)}
               disabled={isRecording}
               placeholder="01"
-              className="w-full bg-zinc-800/50 border border-zinc-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-mono text-xl text-center"
+              className="subtle-input w-full px-3 !py-1 text-white disabled:opacity-50 disabled:cursor-not-allowed font-mono text-base text-center font-bold h-8.5"
             />
             <button
               onClick={handleTakeIncrement}
               disabled={isRecording}
-              className="px-6 py-2.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg"
+              className="subtle-button px-4 !py-1 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-sm hover:scale-[1.02] active:scale-[0.98] h-8.5"
               title="Próximo Take"
             >
               +1
@@ -1104,7 +1104,7 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
 
         {/* Câmera & Lente */}
         <div>
-          <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1.5">Cam / Lente</label>
+          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Cam / Lente</label>
           <div className="flex gap-2 items-center">
             <input
               type="text"
@@ -1113,7 +1113,7 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
               disabled={isRecording}
               placeholder="Cam A"
               maxLength={1}
-              className="w-1/3 bg-zinc-800/50 border border-zinc-700 rounded-xl px-2 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-center uppercase font-mono text-lg"
+              className="subtle-input w-1/3 px-2 !py-1 text-white disabled:opacity-50 disabled:cursor-not-allowed text-center uppercase font-mono text-sm font-bold h-8.5"
             />
             <div className="w-2/3">
               <CinemaAutocompleteInput
@@ -1124,7 +1124,7 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
                 onSaveOption={handleSaveLens}
                 onDeleteOption={handleDeleteLens}
                 disabled={isRecording}
-                inputClassName="w-full bg-zinc-800/50 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-center font-mono text-base"
+                inputClassName="subtle-input w-full px-3 !py-1.5 text-white disabled:opacity-50 disabled:cursor-not-allowed text-center font-mono text-sm font-bold h-8.5"
               />
             </div>
           </div>
@@ -1132,7 +1132,7 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
       </div>
 
       {/* Equipe */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-zinc-800/50">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3 border-t border-zinc-800/50">
         <div>
           <CinemaAutocompleteInput
             label="Diretor(a)"
@@ -1160,71 +1160,71 @@ export function CinemaHeader({ metadata, onChange, isRecording }: CinemaHeaderPr
       </div>
 
       {/* Dados Estendidos de Mídia e Câmera */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 pt-6 mt-2 border-t border-zinc-800/50">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-2 pt-2.5 mt-1 border-t border-white/[0.05]">
         <div>
-          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Cartão (Roll)</label>
+          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5 text-center">Cartão (Roll)</label>
           <input
             type="text"
             value={metadata.rollCard || ''}
             onChange={(e) => handleChange('rollCard', e.target.value.toUpperCase())}
             disabled={isRecording}
             placeholder="A001"
-            className="w-full bg-zinc-800/40 border border-zinc-700/60 rounded-xl px-3 py-1.5 text-white placeholder-zinc-700 text-xs font-mono text-center focus:outline-none focus:border-emerald-500 transition-colors"
+            className="subtle-input w-full px-2 !py-1 text-white placeholder-zinc-700 text-[11px] font-mono text-center h-7 focus:border-emerald-500"
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Som (Sound Roll)</label>
+          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5 text-center">Som (Sound)</label>
           <input
             type="text"
             value={metadata.soundRoll || ''}
             onChange={(e) => handleChange('soundRoll', e.target.value.toUpperCase())}
             disabled={isRecording}
             placeholder="S001"
-            className="w-full bg-zinc-800/40 border border-zinc-700/60 rounded-xl px-3 py-1.5 text-white placeholder-zinc-700 text-xs font-mono text-center focus:outline-none focus:border-emerald-500 transition-colors"
+            className="subtle-input w-full px-2 !py-1 text-white placeholder-zinc-700 text-[11px] font-mono text-center h-7 focus:border-emerald-500"
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Taxa (FPS)</label>
+          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5 text-center">Taxa (FPS)</label>
           <input
             type="text"
             value={metadata.fps || ''}
             onChange={(e) => handleChange('fps', e.target.value)}
             disabled={isRecording}
             placeholder="24fps"
-            className="w-full bg-zinc-800/40 border border-zinc-700/60 rounded-xl px-3 py-1.5 text-white placeholder-zinc-700 text-xs font-mono text-center focus:outline-none focus:border-emerald-500 transition-colors"
+            className="subtle-input w-full px-2 !py-1 text-white placeholder-zinc-700 text-[11px] font-mono text-center h-7 focus:border-emerald-500"
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Abertura</label>
+          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5 text-center">Abertura</label>
           <input
             type="text"
             value={metadata.aperture || ''}
             onChange={(e) => handleChange('aperture', e.target.value)}
             disabled={isRecording}
             placeholder="f/2.8"
-            className="w-full bg-zinc-800/40 border border-zinc-700/60 rounded-xl px-3 py-1.5 text-white placeholder-zinc-700 text-xs font-mono text-center focus:outline-none focus:border-emerald-500 transition-colors"
+            className="subtle-input w-full px-2 !py-1 text-white placeholder-zinc-700 text-[11px] font-mono text-center h-7 focus:border-emerald-500"
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Obturador</label>
+          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5 text-center">Obturador</label>
           <input
             type="text"
             value={metadata.shutter || ''}
             onChange={(e) => handleChange('shutter', e.target.value)}
             disabled={isRecording}
             placeholder="1/50"
-            className="w-full bg-zinc-800/40 border border-zinc-700/60 rounded-xl px-3 py-1.5 text-white placeholder-zinc-700 text-xs font-mono text-center focus:outline-none focus:border-emerald-500 transition-colors"
+            className="subtle-input w-full px-2 !py-1 text-white placeholder-zinc-700 text-[11px] font-mono text-center h-7 focus:border-emerald-500"
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Sensib. (ISO)</label>
+          <label className="block text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5 text-center">Sensib. (ISO)</label>
           <input
             type="text"
             value={metadata.iso || ''}
             onChange={(e) => handleChange('iso', e.target.value)}
             disabled={isRecording}
             placeholder="800"
-            className="w-full bg-zinc-800/40 border border-zinc-700/60 rounded-xl px-3 py-1.5 text-white placeholder-zinc-700 text-xs font-mono text-center focus:outline-none focus:border-emerald-500 transition-colors"
+            className="subtle-input w-full px-2 !py-1 text-white placeholder-zinc-700 text-[11px] font-mono text-center h-7 focus:border-emerald-500"
           />
         </div>
       </div>

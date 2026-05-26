@@ -78,17 +78,17 @@ function SortableButton({ btn, onMark, onResize, onEdit, onDelete, isEditing, la
   return (
     <div ref={setNodeRef} style={style} className={`relative group ${btn.span === 2 ? 'col-span-2' : 'col-span-1'}`}>
       <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.96 }}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.98 }}
         onClick={() => onMark(btn)}
         {...attributes}
         {...listeners}
-        className={`w-full h-20 sm:h-24 flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 shadow-md touch-none ${colorClasses}`}
+        className={`w-full h-11 flex flex-row items-center justify-start px-2.5 rounded-none border transition-all duration-150 shadow-none touch-none gap-2 text-left ${colorClasses}`}
         title={finalTooltip}
         id={`btn-marker-${btn.id}`}
       >
-        <span className="text-xl sm:text-2xl mb-1 select-none pointer-events-none">{btn.icon}</span>
-        <span className={`text-[10px] sm:text-xs font-semibold text-center leading-tight line-clamp-2 w-full px-1 select-none pointer-events-none ${btn.color ? '' : 'text-zinc-300'}`}>
+        <span className="text-base select-none shrink-0 pointer-events-none">{btn.icon}</span>
+        <span className={`text-[10px] sm:text-[11px] font-bold truncate flex-1 leading-tight select-none pointer-events-none ${btn.color ? '' : 'text-zinc-300'}`}>
           {finalLabel}
         </span>
       </motion.button>
@@ -330,11 +330,11 @@ export function MarkerGrid({
     <div className="w-full">
       
       {/* Interactive Speakers & Recognition Area */}
-      <div className="mb-6 p-4 md:p-5 bg-zinc-900/60 rounded-2xl border border-zinc-850 shadow-md">
+      <div className="mb-6 p-4 md:p-5 bg-zinc-950/20 rounded-2xl border border-white/[0.03] shadow-md animate-reveal">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
-            <Volume2 className="text-indigo-400" size={18} />
-            <h3 className="text-xs md:text-sm font-bold text-zinc-300 uppercase tracking-widest font-sans">
+            <Volume2 className="text-emerald-500" size={16} />
+            <h3 className="text-xs md:text-sm font-semibold text-zinc-300 uppercase tracking-widest font-sans">
               {t('whoIsSpeaking')}
             </h3>
             {activeSpeakerId !== 'none' && (
@@ -351,7 +351,7 @@ export function MarkerGrid({
               type="checkbox" 
               checked={askSpeakerOnMark} 
               onChange={(e) => setAskSpeakerOnMark(e.target.checked)}
-              className="w-4 h-4 rounded border-zinc-700 bg-zinc-800 text-indigo-500 focus:ring-indigo-500/50"
+              className="w-4 h-4 rounded border-white/[0.08] bg-zinc-900 text-emerald-500 focus:ring-emerald-500/50 cursor-pointer"
               id="chk-ask-speaker"
             />
             {t('askSpeakerOnMark')}
@@ -362,10 +362,10 @@ export function MarkerGrid({
           {/* Default "Nenhum/None" button to reset active speaker */}
           <button 
             onClick={() => setActiveSpeakerId('none')}
-            className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSpeakerId === 'none'
-                ? 'bg-zinc-700 text-white border-zinc-600 shadow-inner'
-                : 'bg-zinc-800/40 text-zinc-400 border-zinc-800/80 hover:bg-zinc-800 hover:text-zinc-300'
+                ? 'bg-white/[0.08] text-white border-white/[0.12]'
+                : 'bg-white/[0.02] text-zinc-400 border-white/[0.04] hover:bg-white/[0.05] hover:text-zinc-300'
             }`}
           >
             ❌ {t('none')}
@@ -386,10 +386,10 @@ export function MarkerGrid({
                     type: 'person' 
                   }, undefined, currentTime);
                 }}
-                className={`px-4 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 ${
+                className={`px-4 py-1.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
                   isActive
-                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-md ring-2 ring-indigo-500/40 scale-[1.03]'
-                    : 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20 hover:bg-indigo-500/20 hover:border-indigo-500/30'
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-md scale-[1.01]'
+                    : 'bg-white/[0.02] text-zinc-300 border-white/[0.04] hover:bg-white/[0.05] hover:border-white/[0.08]'
                 }`}
                 id={`btn-speaker-${speaker.id}`}
               >
@@ -401,10 +401,10 @@ export function MarkerGrid({
           <button 
             type="button"
             onClick={() => setShowAddSpeakerModal(true)}
-            className="px-3.5 py-2 bg-zinc-800 text-zinc-400 rounded-xl border border-zinc-700 hover:bg-zinc-750 hover:text-white transition-all text-xs font-medium flex items-center gap-1.5"
+            className="px-3.5 py-1.5 bg-white/[0.02] text-zinc-400 rounded-xl border border-white/[0.04] hover:bg-white/[0.05] hover:text-white transition-all text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
             id="btn-add-speaker"
           >
-            <Plus size={14} /> {t('addSpeaker')}
+            <Plus size={13} /> {t('addSpeaker')}
           </button>
         </div>
       </div>
@@ -437,34 +437,34 @@ export function MarkerGrid({
       </DndContext>
 
       {/* Core Universal Action Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-zinc-850 pt-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-white/[0.05] pt-5">
         <button
           onClick={handlePersonClick}
-          className="flex items-center justify-center gap-2 p-3 bg-zinc-850/60 rounded-xl text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-white hover:border-zinc-700 transition-colors text-sm font-medium"
+          className="subtle-button w-full !text-xs !py-3 hover:text-sky-400"
           id="btn-action-person"
         >
-          <User size={16} className="text-[#38bdf8]" /> {t('markPerson')}
+          <User size={14} className="opacity-70 group-hover:opacity-100" /> {t('markPerson')}
         </button>
         <button
           onClick={() => onMark({ id: 'loc', icon: '📍', label: t('location'), type: 'location' })}
-          className="flex items-center justify-center gap-2 p-3 bg-zinc-850/60 rounded-xl text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-white hover:border-zinc-700 transition-colors text-sm font-medium"
+          className="subtle-button w-full !text-xs !py-3 hover:text-rose-400"
           id="btn-action-location"
         >
-          <MapPin size={16} className="text-red-400" /> {t('location')}
+          <MapPin size={14} className="opacity-70 group-hover:opacity-100" /> {t('location')}
         </button>
         <button
           onClick={() => onMark({ id: 'img', icon: '🖼️', label: t('describeVisual'), type: 'image' })}
-          className="flex items-center justify-center gap-2 p-3 bg-zinc-850/60 rounded-xl text-zinc-300 border border-zinc-800 hover:bg-zinc-800 hover:text-white hover:border-zinc-700 transition-colors text-sm font-medium"
+          className="subtle-button w-full !text-xs !py-3 hover:text-fuchsia-400"
           id="btn-action-image"
         >
-          <ImageIcon size={16} className="text-[#c084fc]" /> {t('describeVisual')}
+          <ImageIcon size={14} className="opacity-70 group-hover:opacity-100" /> {t('describeVisual')}
         </button>
         <button
           onClick={handleCustomClick}
-          className="flex items-center justify-center gap-2 p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/15 hover:bg-emerald-500/25 transition-colors text-sm font-semibold"
+          className="subtle-button w-full !text-xs !py-3 bg-emerald-500/5 hover:bg-emerald-500/10 !border-emerald-500/20 text-emerald-400 hover:text-emerald-300"
           id="btn-action-create"
         >
-          <Plus size={16} /> {t('createButton')}
+          <Plus size={14} /> {t('createButton')}
         </button>
       </div>
 

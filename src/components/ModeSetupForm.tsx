@@ -156,16 +156,21 @@ interface ModeSetupFormProps {
 }
 
 export function ModeSetupForm({ modeId, setupData, onChange, formFields }: ModeSetupFormProps) {
-  const fields = formFields || defaultFields[modeId] || defaultFields['default'];
+  let fields = formFields || defaultFields[modeId] || defaultFields['default'];
+
+  // Omit project, scene, shot fields in cinema mode because they are already present as richer inputs in CinemaHeader!
+  if (modeId === 'cinema') {
+    fields = fields.filter(f => f.key !== 'project' && f.key !== 'scene' && f.key !== 'shot');
+  }
 
   const handleChange = (field: string, value: string) => {
     onChange({ ...setupData, [field]: value });
   };
 
   return (
-    <div className="space-y-3 w-full">
+    <div className="space-y-2 w-full">
       {fields.map((field) => (
-        <div key={field.key} className="space-y-1 w-full text-left">
+        <div key={field.key} className="space-y-0.5 w-full text-left">
           <label className="text-[10px] font-bold text-zinc-500 pl-1 uppercase tracking-wider block">
             {field.label}
           </label>
@@ -174,7 +179,7 @@ export function ModeSetupForm({ modeId, setupData, onChange, formFields }: ModeS
               placeholder={field.placeholder}
               value={setupData[field.key] || ''}
               onChange={(e) => handleChange(field.key, e.target.value)}
-              className="w-full bg-[#161825] border border-white/5 hover:border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 hover:focus:border-emerald-500 transition-colors h-20 resize-none font-medium leading-relaxed shadow-inner"
+              className="w-full bg-[#161825] border border-white/5 hover:border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500 hover:focus:border-emerald-500 transition-colors h-14 resize-none font-medium leading-normal shadow-inner"
             />
           ) : (
             <input
@@ -182,7 +187,7 @@ export function ModeSetupForm({ modeId, setupData, onChange, formFields }: ModeS
               placeholder={field.placeholder}
               value={setupData[field.key] || ''}
               onChange={(e) => handleChange(field.key, e.target.value)}
-              className="w-full bg-[#161825] border border-white/5 hover:border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 hover:focus:border-emerald-500 transition-colors font-medium h-9 shadow-inner"
+              className="w-full bg-[#161825] border border-white/5 hover:border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500 hover:focus:border-emerald-500 transition-colors font-medium h-8 shadow-inner"
             />
           )}
         </div>
